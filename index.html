@@ -265,7 +265,7 @@ body.light .card.small .c-roman { color: var(--text); }
 }
 body.light #mesa { box-shadow: inset 0 0 0 5px color-mix(in srgb, var(--bg) 70%, transparent), inset 0 0 0 6px var(--line), inset 0 0 34px rgba(0,0,0,.07); }
 #mesa::after { content: ''; position: absolute; inset: 10px; border: 1px dotted var(--line); border-radius: 10px; pointer-events: none; opacity: .55; }
-.chain-abs { position: absolute; inset: 12px; z-index: 1; }
+.chain-abs { position: absolute; inset: 10px; z-index: 1; }
 .chain-abs .tile { position: absolute; }
 .chain-abs .tile.flip { transform: rotate(180deg); }
 .slot {
@@ -349,7 +349,7 @@ body.light #mesa { box-shadow: inset 0 0 0 5px color-mix(in srgb, var(--bg) 70%,
   <div class="tut-sub">ónix · dominó por rondas</div>
   <div class="tut-step"><div class="tut-num">1</div><div class="tut-text">Dominó <b>doble seis</b>: 28 fichas. Se reparten 7 por jugador (6 si sois cuatro) y el resto queda en el <b>pozo</b>.</div></div>
   <div class="tut-step"><div class="tut-num">2</div><div class="tut-text">Sale quien tenga el <b>doble más alto</b>. En las rondas siguientes sale quien ganó la anterior.</div></div>
-  <div class="tut-step"><div class="tut-num">3</div><div class="tut-text"><b>Arrastra</b> una ficha hasta uno de los dos extremos: al acercarte, el hueco la atrae sola. Si no puedes, <b>robas del pozo</b> hasta poder; si el pozo está vacío, pasas.</div></div>
+  <div class="tut-step"><div class="tut-num">3</div><div class="tut-text"><b>Arrastra</b> la ficha a la mesa y suéltala donde quieras. Con <b>dos dedos</b> la giras, y si la acercas a un extremo se coloca sola. Si no puedes, <b>robas del pozo</b> hasta poder; si el pozo está vacío, pasas.</div></div>
   <div class="tut-step"><div class="tut-num">4</div><div class="tut-text">La ronda acaba cuando alguien se queda <b>sin fichas</b>, o cuando nadie puede jugar (<b>cierre</b>): entonces gana quien menos puntos tenga en la mano.</div></div>
   <div class="tut-step"><div class="tut-num">★</div><div class="tut-text">El ganador de la ronda resta <b>5 puntos</b>. Los demás suman los <b>puntos de las fichas</b> que les queden: un 5/2 y un 1/3 son 11.</div></div>
   <div class="tut-step"><div class="tut-num">♛</div><div class="tut-text">Los puntos son malos: la partida acaba en cuanto alguien <b>llega al límite</b> (50, 100 o 150) y gana quien tenga el <b>total más bajo</b>.</div></div>
@@ -369,7 +369,7 @@ body.light #mesa { box-shadow: inset 0 0 0 5px color-mix(in srgb, var(--bg) 70%,
   <div class="btn-row">
     <button class="btn" id="btn-play">Jugar</button>
   </div>
-  <div class="ver-tag" id="ver-tag">v0.11.0</div>
+  <div class="ver-tag" id="ver-tag">v0.12.0</div>
 </div>
 
 <!-- SETUP -->
@@ -452,7 +452,7 @@ body.light #mesa { box-shadow: inset 0 0 0 5px color-mix(in srgb, var(--bg) 70%,
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
-const VERSION = 'v0.11.0';
+const VERSION = 'v0.12.0';
 
 /* =====================================================================
    ESTADO
@@ -474,7 +474,6 @@ let turn = 0;
 let passes = 0;
 let lastPlayer = 0;
 let starter = 0;
-let originId = null;      // ficha de salida: ancla el centro de la mesa
 let selected = null;      // id de ficha seleccionada en la mano
 let busy = false;         // bloquea input mientras juega la IA
 let roundOver = false;
@@ -544,7 +543,7 @@ function nextRound() {
   for (let p = 0; p < nPlayers; p++) hands.push(deck.splice(0, per));
   pozo = deck;
   chain = [];
-  originId = null;
+  ends = null;
   passes = 0;
   roundOver = false;
   selected = null;
@@ -580,28 +579,19 @@ function findStarter() {
   return bestP;
 }
 
-function playTile(p, tileId, side) {
+function playTile(p, tileId, side, pl, prefer) {
   const idx = hands[p].findIndex(t => t.id === tileId);
   if (idx < 0) return false;
   const t = hands[p][idx];
-  let placed;
   if (!chain.length) {
-    placed = { a: t.a, b: t.b, id: t.id };
-    originId = t.id;
-    chain.push(placed);
-  } else if (side === 'L') {
-    const e = leftEnd();
-    if (t.b === e) placed = { a: t.a, b: t.b, id: t.id };
-    else if (t.a === e) placed = { a: t.b, b: t.a, id: t.id };
-    else return false;
-    chain.unshift(placed);
+    side = 'R';
+    if (!pl) pl = { cx: 0, cy: 0, rot: 0 };
   } else {
-    const e = rightEnd();
-    if (t.a === e) placed = { a: t.a, b: t.b, id: t.id };
-    else if (t.b === e) placed = { a: t.b, b: t.a, id: t.id };
-    else return false;
-    chain.push(placed);
+    if (side === 'L' ? !fitsL(t) : !fitsR(t)) return false;
+    if (!pl) { const s = sitioAuto(side); pl = s.pl; prefer = s.prefer; }
   }
+  const nuevo = armar(t, side, pl, prefer);
+  if (chain.length && side === 'L') chain.unshift(nuevo); else chain.push(nuevo);
   hands[p].splice(idx, 1);
   lastPlayer = p;
   passes = 0;
@@ -811,7 +801,9 @@ function selectTile(id) {
 
 function doHumanPlay(side) {
   if (!selected) return;
-  if (!playTile(0, selected, side)) return;
+  const id = selected;
+  selected = null;
+  if (!playTile(0, id, side)) { render(); return; }
   render();
   if (checkRoundEnd()) return;
   advanceTurn();
@@ -867,9 +859,6 @@ function render(freshId) {
   hd.innerHTML = hs;
   hd.querySelectorAll('.tile').forEach(el => {
     el.addEventListener('pointerdown', dragStart);
-    el.addEventListener('pointermove', dragMove);
-    el.addEventListener('pointerup', dragEnd);
-    el.addEventListener('pointercancel', dragEnd);
   });
 
   // botones
@@ -881,200 +870,182 @@ function render(freshId) {
 // avanza en 4 direcciones. Al llegar al borde gira 90 grados: la ficha del
 // codo se coloca perpendicular, la cadena baja (rama derecha) o sube (rama
 // izquierda) y sigue en sentido contrario.
-// Si CRUZAR_DOBLES es true los dobles se ponen de canto (como en la mesa
-// real) pero sobresalen media ficha y obligan a separar las filas, lo que
-// desalinea los codos. En false todo mide igual y la geometria es exacta.
-const CRUZAR_DOBLES = false;
+// =====================================================================
+//   MESA LIBRE
+//   Cada ficha guarda su sitio (cx, cy) y su giro (0/90/180/270) en
+//   unidades de mesa. No hay algoritmo de trazado: la posicion la decide
+//   quien juega. La vista se encoge sola para que todo quepa.
+// =====================================================================
+const UU = 44;                 // media ficha en unidades de mesa
+const DIRV = { 0: [1, 0], 90: [0, 1], 180: [-1, 0], 270: [0, -1] };
+const LIMX = 8 * UU;           // hasta donde tira la CPU antes de girar
+const MAX_MEDIA = 34;          // media ficha, en px, como maximo en pantalla
 
-function chainLayout(u, W) {
-  const gap = 3;
-  const n = chain.length;
-  let o = chain.findIndex(t => t.id === originId);
-  if (o < 0) o = 0;
-  const isD = i => CRUZAR_DOBLES && chain[i].a === chain[i].b;
-  const out = [];
+let ends = null;               // { L:{x,y,dx,dy}, R:{...} } puntos de enganche
+let vista = { s: 1, ox: 0, oy: 0 };   // escala y desplazamiento de la vista
 
-  // rev = false: la cadena se recorre hacia delante y se entra por la mitad
-  // 'a'. rev = true: rama izquierda, se entra por la mitad 'b'.
-  function place(i, P, d, rev) {
-    const dbl = isD(i);
-    const L = dbl ? u : 2 * u;      // largo en la direccion de avance
-    const A = dbl ? 2 * u : u;      // ancho perpendicular
-    const adelante = (d.x > 0 || d.y > 0);
-    const flip = rev ? adelante : !adelante;
-    let x, y, w, ht, cls;
-    if (d.x !== 0) {
-      w = L; ht = A;
-      x = d.x > 0 ? P.x : P.x - L;
-      y = P.y - A / 2;
-      cls = dbl ? 'v' : 'h';
-    } else {
-      w = A; ht = L;
-      x = P.x - A / 2;
-      y = d.y > 0 ? P.y : P.y - L;
-      cls = dbl ? 'h' : 'v';
-    }
-    out.push({ t: chain[i], x: x, y: y, w: w, h: ht, cls: cls, flip: flip });
-    return { x: P.x + d.x * (L + gap), y: P.y + d.y * (L + gap) };
-  }
+function dirOf(rot) { return DIRV[((rot % 360) + 360) % 360]; }
 
-  // Paso vertical entre filas: exactamente el ancho de una ficha. Es lo que
-  // sale de la propia L: la fila nueva ocupa la mitad baja del codo.
-  const pitch = u + gap;
-
-  // Hueco donde caeria la siguiente ficha de un extremo.
-  function slotAt(P, hd, vy, rev) {
-    const L = 2 * u, A = u, RES = 2 * u;
-    const fits = hd === 1 ? (P.x + L + RES <= W) : (P.x - L - RES >= 0);
-    if (fits) {
-      return { x: hd === 1 ? P.x : P.x - L, y: P.y - A / 2, w: L, h: A, cls: 'h', dx: hd, dy: 0, rev: rev };
-    }
-    let cx = P.x + hd * (A / 2);
-    cx = Math.max(A / 2, Math.min(W - A / 2, cx));
-    const ey = P.y - vy * (u / 2);
-    return { x: cx - A / 2, y: vy > 0 ? ey : ey - L, w: A, h: L, cls: 'v', dx: 0, dy: vy, rev: rev };
-  }
-
-  function branch(from, to, step, hd0, P0, vy, rev) {
-    let hd = hd0, P = P0;
-    for (let i = from; i !== to; i += step) {
-      const dbl = isD(i);
-      const L = dbl ? u : 2 * u;   // largo
-      const A = dbl ? 2 * u : u;   // ancho de canto
-      // sitio reservado para el codo que vendra (una ficha puesta de canto)
-      const RES = CRUZAR_DOBLES ? 2 * u : u;
-      const fits = hd === 1 ? (P.x + L + RES <= W) : (P.x - L - RES >= 0);
-      if (!fits) {
-        // Codo en L: la ficha se pone de canto al final de la fila. Si es un
-        // doble (corto) se centra entre las dos filas; si no, se alinea con
-        // el borde de la fila que deja.
-        let cx = P.x + hd * (A / 2);
-        cx = Math.max(A / 2, Math.min(W - A / 2, cx));
-        const ey = P.y - vy * (u / 2);
-        place(i, { x: cx, y: ey }, { x: 0, y: vy }, rev);
-        hd = -hd;
-        P = { x: cx + hd * (A / 2 + gap), y: P.y + vy * pitch };
-        continue;
-      }
-      P = place(i, P, { x: hd, y: 0 }, rev);
-    }
-    return { P: P, hd: hd };
-  }
-
-  // --- ficha de salida, anclada en el centro ---
-  const L0 = isD(o) ? u : 2 * u;
-  const entry0 = { x: W / 2 - L0 / 2, y: 0 };
-  const Pright = place(o, entry0, { x: 1, y: 0 }, false);
-
-  const endR = branch(o + 1, n, 1, 1, Pright, 1, false);
-  const endL = branch(o - 1, -1, -1, -1, { x: entry0.x, y: 0 }, -1, true);
-  return {
-    tiles: out,
-    ends: {
-      R: slotAt(endR.P, endR.hd, 1, false),
-      L: slotAt(endL.P, endL.hd, -1, true)
-    }
-  };
+function rectOf(pl) {
+  const d = dirOf(pl.rot);
+  const horiz = d[1] === 0;
+  const w = horiz ? 2 * UU : UU;
+  const hh = horiz ? UU : 2 * UU;
+  return { x: pl.cx - w / 2, y: pl.cy - hh / 2, w: w, h: hh };
 }
 
-function bbox(lay) {
-  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
-  for (const it of lay) {
-    if (it.x < x0) x0 = it.x;
-    if (it.x + it.w > x1) x1 = it.x + it.w;
-    if (it.y < y0) y0 = it.y;
-    if (it.y + it.h > y1) y1 = it.y + it.h;
+// Coloca la ficha t por el lado 'side' en la posicion dada (o automatica).
+// Devuelve el objeto de cadena ya con su sitio y sus dos mitades ordenadas.
+function mitadesDe(t, side, pl, prefer) {
+  if (!ends) return { v1: t.a, v2: t.b, fuera: 1, la: t.a, lb: t.b };
+  const d = dirOf(pl.rot);
+  const h1 = { x: pl.cx - d[0] * UU / 2, y: pl.cy - d[1] * UU / 2 };
+  const h2 = { x: pl.cx + d[0] * UU / 2, y: pl.cy + d[1] * UU / 2 };
+  const E = ends[side];
+  const val = side === 'L' ? leftEnd() : rightEnd();
+  const d1 = Math.hypot(h1.x - E.x, h1.y - E.y);
+  const d2 = Math.hypot(h2.x - E.x, h2.y - E.y);
+  let pegaPrimera;
+  if (Math.abs(d1 - d2) < 2 && prefer) {
+    // ficha cruzada: las dos mitades estan a la misma distancia del extremo
+    pegaPrimera = (d[0] * prefer[0] + d[1] * prefer[1]) > 0;
+  } else {
+    pegaPrimera = d1 <= d2;
   }
-  return { x0: x0, x1: x1, y0: y0, y1: y1 };
+  const otro = (t.a === val) ? t.b : t.a;
+  // orden logico de la cadena: por la derecha casa la 'a', por la izquierda la 'b'
+  const la = side === 'R' ? val : otro;
+  const lb = side === 'R' ? otro : val;
+  if (pegaPrimera) return { v1: val, v2: otro, fuera: 1, la: la, lb: lb };
+  return { v1: otro, v2: val, fuera: -1, la: la, lb: lb };
 }
 
-let SLOTS = { L: null, R: null };
-let lastU = 26;
+function armar(t, side, pl, prefer) {
+  const vacio = !ends;
+  const d = dirOf(pl.rot);
+  const m = mitadesDe(t, side, pl, prefer);
+  const v1 = m.v1, v2 = m.v2, fuera = m.fuera;
 
+  const nuevo = { a: m.la, b: m.lb, id: t.id, cx: pl.cx, cy: pl.cy, rot: pl.rot, v1: v1, v2: v2 };
+  const salida = { x: pl.cx + fuera * d[0] * UU, y: pl.cy + fuera * d[1] * UU, dx: fuera * d[0], dy: fuera * d[1] };
+
+  if (vacio) {
+    ends = {
+      R: salida,
+      L: { x: pl.cx - d[0] * UU, y: pl.cy - d[1] * UU, dx: -d[0], dy: -d[1] }
+    };
+  } else {
+    ends[side] = salida;
+  }
+  return nuevo;
+}
+
+// Sitio automatico para un extremo (lo usa la CPU y los botones IZQ/DER).
+function sitioAuto(side) {
+  const E = ends[side];
+  const horiz = E.dy === 0;
+  const lejos = horiz && Math.abs(E.x) > LIMX;
+  const giro = side === 'R' ? [0, 1] : [0, -1];
+  if (lejos || !horiz) {
+    // cruzada: gira 90 grados
+    const rot = horiz ? 90 : 0;
+    return { pl: { cx: E.x + E.dx * UU / 2, cy: E.y + E.dy * UU / 2, rot: rot }, prefer: horiz ? giro : [-Math.sign(E.x) || 1, 0] };
+  }
+  const rot = E.dx === 1 ? 0 : E.dx === -1 ? 180 : E.dy === 1 ? 90 : 270;
+  return { pl: { cx: E.x + E.dx * UU, cy: E.y + E.dy * UU, rot: rot }, prefer: null };
+}
+
+// Hueco donde caeria la siguiente ficha, para pintarlo y para el iman.
+function huecoDe(side, rot) {
+  const E = ends[side];
+  const d = dirOf(rot);
+  const par = Math.abs(d[0] * E.dx + d[1] * E.dy) === 1;
+  const k = par ? UU : UU / 2;
+  return { cx: E.x + E.dx * k, cy: E.y + E.dy * k, rot: rot };
+}
+
+/* ---------------------------------------------------------------- render */
 function renderChain() {
   const mesa = $('mesa');
   if (!mesa) return;
-  const W = mesa.clientWidth - 24;
-  const H = mesa.clientHeight - 24;
+  const W = mesa.clientWidth - 20, H = mesa.clientHeight - 20;
   if (W <= 0 || H <= 0) { requestAnimationFrame(renderChain); return; }
 
   if (!chain.length) {
-    lastU = Math.min(30, Math.floor(W / 4));
-    SLOTS = { L: null, R: { x: W / 2 - lastU, y: H / 2 - lastU / 2, w: 2 * lastU, h: lastU, cls: 'h', dx: 1, dy: 0, rev: false } };
-    mesa.innerHTML = '<div class="chain-abs">' + slotHTML() + '</div>';
+    vista = { s: Math.min(MAX_MEDIA, Math.floor(W / 6)) / UU, ox: W / 2, oy: H / 2 };
+    mesa.innerHTML = '<div class="chain-abs">' + huecosHTML() + '</div>';
     return;
   }
 
-  const SIZES = [34, 30, 26, 23, 20, 17, 15, 13, 11, 9, 7];
-  let lay = null, bb = null, u = SIZES[SIZES.length - 1];
-  for (const s of SIZES) {
-    if (3 * s > W) continue;
-    const L = chainLayout(s, W);
-    const b = bbox(L.tiles);
-    if (b.y1 - b.y0 <= H) { lay = L; bb = b; u = s; break; }
-  }
-  if (!lay) { lay = chainLayout(u, W); bb = bbox(lay.tiles); }
-  lastU = u;
-
-  const dy = -bb.y0 + Math.max(0, (H - (bb.y1 - bb.y0)) / 2);
-  SLOTS = {
-    L: Object.assign({}, lay.ends.L, { y: lay.ends.L.y + dy }),
-    R: Object.assign({}, lay.ends.R, { y: lay.ends.R.y + dy })
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  const meter = r => {
+    if (r.x < x0) x0 = r.x; if (r.x + r.w > x1) x1 = r.x + r.w;
+    if (r.y < y0) y0 = r.y; if (r.y + r.h > y1) y1 = r.y + r.h;
   };
+  for (const c of chain) meter(rectOf(c));
+  if (ends) for (const s of ['L', 'R']) meter(rectOf(huecoDe(s, ends[s].dy === 0 ? 0 : 90)));
 
-  let s = '<div class="chain-abs">';
-  for (const it of lay.tiles) {
-    s += '<div class="tile ' + it.cls + (it.flip ? ' flip' : '') + '" style="left:' + Math.round(it.x)
-      + 'px;top:' + Math.round(it.y + dy) + 'px;width:' + Math.round(it.w) + 'px;height:' + Math.round(it.h)
-      + 'px">' + halfHTML(it.t.a) + halfHTML(it.t.b) + '</div>';
-  }
-  s += slotHTML();
-  s += '</div>';
-  mesa.innerHTML = s;
+  const bw = Math.max(1, x1 - x0), bh = Math.max(1, y1 - y0);
+  const s = Math.min(W / bw, H / bh, MAX_MEDIA / UU);
+  vista = { s: s, ox: (W - bw * s) / 2 - x0 * s, oy: (H - bh * s) / 2 - y0 * s };
+
+  let out = '<div class="chain-abs">';
+  for (const c of chain) out += fichaHTML(c);
+  out += huecosHTML();
+  out += '</div>';
+  mesa.innerHTML = out;
 }
 
-// Huecos: solo se pintan en tu turno y solo donde te encaja alguna ficha.
-function slotHTML() {
+function aPantalla(cx, cy) { return { x: cx * vista.s + vista.ox, y: cy * vista.s + vista.oy }; }
+function aMesa(px, py) { return { x: (px - vista.ox) / vista.s, y: (py - vista.oy) / vista.s }; }
+
+function fichaHTML(c) {
+  const r = rectOf(c), d = dirOf(c.rot);
+  const horiz = d[1] === 0;
+  const inv = (c.rot === 180 || c.rot === 270);
+  const A = inv ? c.v2 : c.v1, B = inv ? c.v1 : c.v2;
+  const p = aPantalla(r.x + r.w / 2, r.y + r.h / 2);
+  const w = r.w * vista.s, hh = r.h * vista.s;
+  return '<div class="tile ' + (horiz ? 'h' : 'v') + '" style="left:' + Math.round(p.x - w / 2)
+    + 'px;top:' + Math.round(p.y - hh / 2) + 'px;width:' + Math.round(w) + 'px;height:'
+    + Math.round(hh) + 'px">' + halfHTML(A) + halfHTML(B) + '</div>';
+}
+
+function huecosHTML() {
   if (busy || roundOver || turn !== 0) return '';
-  let s = '';
-  for (const side of ['L', 'R']) {
-    const sl = SLOTS[side];
-    if (!sl) continue;
-    const util = hands[0].some(t => !chain.length ? true : (side === 'L' ? fitsL(t) : fitsR(t)));
-    if (!util) continue;
-    s += '<div class="slot" data-side="' + side + '" style="left:' + Math.round(sl.x) + 'px;top:'
-      + Math.round(sl.y) + 'px;width:' + Math.round(sl.w) + 'px;height:' + Math.round(sl.h) + 'px"></div>';
+  let out = '';
+  if (!chain.length) {
+    const w = 2 * UU * vista.s, hh = UU * vista.s;
+    out += '<div class="slot" data-side="R" style="left:' + Math.round(vista.ox - w / 2) + 'px;top:'
+      + Math.round(vista.oy - hh / 2) + 'px;width:' + Math.round(w) + 'px;height:' + Math.round(hh) + 'px"></div>';
+    return out;
   }
-  return s;
+  for (const side of ['L', 'R']) {
+    if (!hands[0].some(t => side === 'L' ? fitsL(t) : fitsR(t))) continue;
+    const E = ends[side];
+    const pl = huecoDe(side, E.dy === 0 ? 0 : 90);
+    const r = rectOf(pl);
+    const p = aPantalla(r.x + r.w / 2, r.y + r.h / 2);
+    const w = r.w * vista.s, hh = r.h * vista.s;
+    out += '<div class="slot" data-side="' + side + '" style="left:' + Math.round(p.x - w / 2) + 'px;top:'
+      + Math.round(p.y - hh / 2) + 'px;width:' + Math.round(w) + 'px;height:' + Math.round(hh) + 'px"></div>';
+  }
+  return out;
 }
 
 /* =====================================================================
-   ARRASTRE CON IMÁN
+   ARRASTRE LIBRE · un dedo mueve, dos dedos giran
    ===================================================================== */
 let drag = null;
-const IMAN = 120;   // radio de captura en px
+const punteros = new Map();
+const IMAN = 1.4;          // radio de captura, en medias fichas
 
-function slotRect(side) {
-  const sl = SLOTS[side];
-  if (!sl) return null;
-  const cont = document.querySelector('#mesa .chain-abs');
-  if (!cont) return null;
-  const r = cont.getBoundingClientRect();
-  return { cx: r.left + sl.x + sl.w / 2, cy: r.top + sl.y + sl.h / 2, sl: sl };
-}
-
-function sideValido(t, side) {
-  if (!chain.length) return side === 'R';
-  return side === 'L' ? fitsL(t) : fitsR(t);
-}
-
-// Mitades tal y como quedaran al colocarse: por la derecha se entra por 'a',
-// por la izquierda por 'b'.
-function mitades(t, side) {
-  if (!chain.length) return [t.a, t.b];
-  const e = side === 'L' ? leftEnd() : rightEnd();
-  if (side === 'R') return (t.a === e) ? [t.a, t.b] : [t.b, t.a];
-  return (t.b === e) ? [t.a, t.b] : [t.b, t.a];
+function ladosValidos(t) {
+  if (!chain.length) return ['R'];
+  const r = [];
+  if (fitsL(t)) r.push('L');
+  if (fitsR(t)) r.push('R');
+  return r;
 }
 
 function dragStart(e) {
@@ -1082,96 +1053,128 @@ function dragStart(e) {
   const el = e.currentTarget;
   const t = hands[0].find(x => x.id === el.dataset.id);
   if (!t || !canPlay(t)) return;
-  drag = { t: t, el: el, x0: e.clientX, y0: e.clientY, moved: false, side: null };
-  try { el.setPointerCapture(e.pointerId); } catch (err) {}
+  punteros.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (drag) return;
+  drag = { t: t, el: el, rot: 90, x0: e.clientX, y0: e.clientY, moved: false,
+           side: null, pl: null, rotBase: null, rotIni: 90 };
+  window.addEventListener('pointerdown', gDown, true);
+  window.addEventListener('pointermove', gMove, true);
+  window.addEventListener('pointerup', gUp, true);
+  window.addEventListener('pointercancel', gUp, true);
 }
 
-function dragMove(e) {
+function gDown(e) { if (drag) punteros.set(e.pointerId, { x: e.clientX, y: e.clientY }); }
+
+function gMove(e) {
   if (!drag) return;
+  punteros.set(e.pointerId, { x: e.clientX, y: e.clientY });
   if (!drag.moved) {
-    if (Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 10) return;
+    if (Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 8) return;
     drag.moved = true;
-    crearFantasma();
+    drag.el.classList.add('dragging');
+    const g = document.createElement('div');
+    g.id = 'ghost';
+    document.body.appendChild(g);
   }
-  moverFantasma(e.clientX, e.clientY);
+  const ps = Array.from(punteros.values());
+  if (ps.length >= 2) {
+    const ang = Math.atan2(ps[1].y - ps[0].y, ps[1].x - ps[0].x) * 180 / Math.PI;
+    if (drag.rotBase === null) { drag.rotBase = ang; drag.rotIni = drag.rot; }
+    const nueva = ((drag.rotIni + Math.round((ang - drag.rotBase) / 90) * 90) % 360 + 360) % 360;
+    if (nueva !== drag.rot) { drag.rot = nueva; beep(660, 0.03); }
+  } else {
+    drag.rotBase = null;
+  }
+  let px = 0, py = 0;
+  for (const q of ps) { px += q.x; py += q.y; }
+  px /= ps.length; py /= ps.length;
+  if (ps.length < 2) py -= 54;      // que no la tape el dedo
+  pintarFantasma(px, py);
   e.preventDefault();
 }
 
-function dragEnd(e) {
-  if (!drag) return;
+function gUp(e) {
+  punteros.delete(e.pointerId);
+  if (!drag || punteros.size > 0) return;
   const d = drag;
   drag = null;
-  const g = $('ghost');
+  window.removeEventListener('pointerdown', gDown, true);
+  window.removeEventListener('pointermove', gMove, true);
+  window.removeEventListener('pointerup', gUp, true);
+  window.removeEventListener('pointercancel', gUp, true);
+  const g = $('ghost'); if (g) g.remove();
   if (d.el) d.el.classList.remove('dragging');
-  if (!d.moved) {
-    if (g) g.remove();
-    selectTile(d.t.id);
-    return;
-  }
-  if (d.side) {
-    if (g) g.remove();
-    selected = d.t.id;
-    doHumanPlay(d.side);
-  } else {
-    if (g) g.remove();
-    render();
-  }
+  if (!d.moved) { selectTile(d.t.id); return; }
+  if (!d.pl || !d.side) { render(); return; }
+  if (!playTile(0, d.t.id, d.side, d.pl, d.prefer)) { render(); return; }
+  render();
+  if (checkRoundEnd()) return;
+  advanceTurn();
+  afterTurn();
 }
 
-function crearFantasma() {
-  drag.el.classList.add('dragging');
-  const r = drag.el.getBoundingClientRect();
-  const g = document.createElement('div');
-  g.id = 'ghost';
-  g.className = 'tile v';
-  g.style.width = r.width + 'px';
-  g.style.height = r.height + 'px';
-  g.innerHTML = halfHTML(drag.t.a) + halfHTML(drag.t.b);
-  document.body.appendChild(g);
-  drag.libreW = r.width; drag.libreH = r.height;
-}
-
-function moverFantasma(x, y) {
+function pintarFantasma(px, py) {
   const g = $('ghost');
-  if (!g) return;
+  const cont = document.querySelector('#mesa .chain-abs');
+  if (!g || !cont) return;
+  const r = cont.getBoundingClientRect();
+  const libre = aMesa(px - r.left, py - r.top);
 
-  // imán: busca el extremo compatible más cercano
-  let mejor = null, mejorD = IMAN;
-  for (const side of ['L', 'R']) {
-    if (!sideValido(drag.t, side)) continue;
-    const r = slotRect(side);
-    if (!r) continue;
-    const d = Math.hypot(x - r.cx, y - r.cy);
-    if (d < mejorD) { mejorD = d; mejor = { side: side, r: r }; }
+  // imán: el hueco compatible más cercano
+  let mejor = null, mejorD = IMAN * UU;
+  for (const side of ladosValidos(drag.t)) {
+    const hu = chain.length ? huecoDe(side, drag.rot) : { cx: 0, cy: 0, rot: drag.rot };
+    const dist = Math.hypot(libre.x - hu.cx, libre.y - hu.cy);
+    if (dist < mejorD) { mejorD = dist; mejor = { side: side, pl: hu }; }
   }
+
+  let pl, side, prefer = null;
+  if (mejor) {
+    pl = mejor.pl; side = mejor.side;
+    if (chain.length) {
+      const E = ends[side];
+      prefer = [E.dx, E.dy];
+    }
+    if (drag.side !== side || !drag.pegado) beep(520, 0.03);
+    drag.pegado = true;
+  } else {
+    pl = { cx: libre.x, cy: libre.y, rot: drag.rot };
+    side = chain.length ? ladoMasCerca(libre) : 'R';
+    drag.pegado = false;
+  }
+  drag.pl = pl; drag.side = side; drag.prefer = prefer;
 
   document.querySelectorAll('.slot').forEach(s => {
-    s.classList.toggle('live', sideValido(drag.t, s.dataset.side));
+    s.classList.toggle('live', ladosValidos(drag.t).indexOf(s.dataset.side) >= 0);
     s.classList.toggle('magnet', !!mejor && s.dataset.side === mejor.side);
   });
 
-  if (mejor) {
-    if (drag.side !== mejor.side) beep(520, 0.03);
-    drag.side = mejor.side;
-    const sl = mejor.r.sl;
-    const [a, b] = mitades(drag.t, mejor.side);
-    const adelante = (sl.dx > 0 || sl.dy > 0);
-    const flip = sl.rev ? adelante : !adelante;
-    g.className = 'tile ' + sl.cls + (flip ? ' flip' : '') + ' snapped';
-    g.style.width = sl.w + 'px';
-    g.style.height = sl.h + 'px';
-    g.style.left = (mejor.r.cx - sl.w / 2) + 'px';
-    g.style.top = (mejor.r.cy - sl.h / 2) + 'px';
-    g.innerHTML = halfHTML(a) + halfHTML(b);
-  } else {
-    drag.side = null;
-    g.className = 'tile v';
-    g.style.width = drag.libreW + 'px';
-    g.style.height = drag.libreH + 'px';
-    g.style.left = (x - drag.libreW / 2) + 'px';
-    g.style.top = (y - drag.libreH - 26) + 'px';
-    g.innerHTML = halfHTML(drag.t.a) + halfHTML(drag.t.b);
+  const m = chain.length ? mitadesDe(drag.t, side, pl, prefer)
+                         : { v1: drag.t.a, v2: drag.t.b };
+  const dv = dirOf(pl.rot), horiz = dv[1] === 0;
+  const inv = (pl.rot === 180 || pl.rot === 270);
+  const A = inv ? m.v2 : m.v1, B = inv ? m.v1 : m.v2;
+  const w = (horiz ? 2 * UU : UU) * vista.s;
+  const hh = (horiz ? UU : 2 * UU) * vista.s;
+  const p = aPantalla(pl.cx, pl.cy);
+  g.className = 'tile ' + (horiz ? 'h' : 'v') + (mejor ? ' snapped' : '');
+  g.style.width = Math.round(w) + 'px';
+  g.style.height = Math.round(hh) + 'px';
+  g.style.left = Math.round(r.left + p.x - w / 2) + 'px';
+  g.style.top = Math.round(r.top + p.y - hh / 2) + 'px';
+  g.innerHTML = halfHTML(A) + halfHTML(B);
+}
+
+function ladoMasCerca(pt) {
+  const lados = ladosValidos(drag.t);
+  if (lados.length === 1) return lados[0];
+  let mejor = lados[0], mejorD = Infinity;
+  for (const s of lados) {
+    const E = ends[s];
+    const dd = Math.hypot(pt.x - E.x, pt.y - E.y);
+    if (dd < mejorD) { mejorD = dd; mejor = s; }
   }
+  return mejor;
 }
 
 /* =====================================================================
