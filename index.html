@@ -369,7 +369,7 @@ body.light #mesa { box-shadow: inset 0 0 0 5px color-mix(in srgb, var(--bg) 70%,
   <div class="btn-row">
     <button class="btn" id="btn-play">Jugar</button>
   </div>
-  <div class="ver-tag" id="ver-tag">v0.10.0</div>
+  <div class="ver-tag" id="ver-tag">v0.11.0</div>
 </div>
 
 <!-- SETUP -->
@@ -452,7 +452,7 @@ body.light #mesa { box-shadow: inset 0 0 0 5px color-mix(in srgb, var(--bg) 70%,
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
-const VERSION = 'v0.10.0';
+const VERSION = 'v0.11.0';
 
 /* =====================================================================
    ESTADO
@@ -881,12 +881,17 @@ function render(freshId) {
 // avanza en 4 direcciones. Al llegar al borde gira 90 grados: la ficha del
 // codo se coloca perpendicular, la cadena baja (rama derecha) o sube (rama
 // izquierda) y sigue en sentido contrario.
+// Si CRUZAR_DOBLES es true los dobles se ponen de canto (como en la mesa
+// real) pero sobresalen media ficha y obligan a separar las filas, lo que
+// desalinea los codos. En false todo mide igual y la geometria es exacta.
+const CRUZAR_DOBLES = false;
+
 function chainLayout(u, W) {
   const gap = 3;
   const n = chain.length;
   let o = chain.findIndex(t => t.id === originId);
   if (o < 0) o = 0;
-  const isD = i => chain[i].a === chain[i].b;
+  const isD = i => CRUZAR_DOBLES && chain[i].a === chain[i].b;
   const out = [];
 
   // rev = false: la cadena se recorre hacia delante y se entra por la mitad
@@ -913,11 +918,9 @@ function chainLayout(u, W) {
     return { x: P.x + d.x * (L + gap), y: P.y + d.y * (L + gap) };
   }
 
-  // Recorre una rama. vy = +1 gira hacia abajo, -1 hacia arriba.
-  // Paso vertical fijo entre filas: 2u + hueco. Con esa distancia nunca
-  // chocan ni los dobles (que sobresalen media ficha) y las filas quedan
-  // a la misma altura unas de otras.
-  const pitch = 2 * u + gap;
+  // Paso vertical entre filas: exactamente el ancho de una ficha. Es lo que
+  // sale de la propia L: la fila nueva ocupa la mitad baja del codo.
+  const pitch = u + gap;
 
   // Hueco donde caeria la siguiente ficha de un extremo.
   function slotAt(P, hd, vy, rev) {
@@ -938,9 +941,8 @@ function chainLayout(u, W) {
       const dbl = isD(i);
       const L = dbl ? u : 2 * u;   // largo
       const A = dbl ? 2 * u : u;   // ancho de canto
-      // se reserva sitio para el codo que vendra (una ficha de canto, 2u en
-      // el peor caso: un doble), asi nunca hay que recortarlo contra el borde
-      const RES = 2 * u;
+      // sitio reservado para el codo que vendra (una ficha puesta de canto)
+      const RES = CRUZAR_DOBLES ? 2 * u : u;
       const fits = hd === 1 ? (P.x + L + RES <= W) : (P.x - L - RES >= 0);
       if (!fits) {
         // Codo en L: la ficha se pone de canto al final de la fila. Si es un
@@ -948,7 +950,7 @@ function chainLayout(u, W) {
         // el borde de la fila que deja.
         let cx = P.x + hd * (A / 2);
         cx = Math.max(A / 2, Math.min(W - A / 2, cx));
-        const ey = dbl ? P.y + vy * (u / 2 + gap / 2) : P.y - vy * (u / 2);
+        const ey = P.y - vy * (u / 2);
         place(i, { x: cx, y: ey }, { x: 0, y: vy }, rev);
         hd = -hd;
         P = { x: cx + hd * (A / 2 + gap), y: P.y + vy * pitch };
