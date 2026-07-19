@@ -338,7 +338,7 @@ body.light #mesa { box-shadow: inset 0 0 0 5px color-mix(in srgb, var(--bg) 70%,
   <div class="btn-row">
     <button class="btn" id="btn-play">Jugar</button>
   </div>
-  <div class="ver-tag" id="ver-tag">v0.4.0</div>
+  <div class="ver-tag" id="ver-tag">v0.5.0</div>
 </div>
 
 <!-- SETUP -->
@@ -421,7 +421,7 @@ body.light #mesa { box-shadow: inset 0 0 0 5px color-mix(in srgb, var(--bg) 70%,
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
-const VERSION = 'v0.4.0';
+const VERSION = 'v0.5.0';
 
 /* =====================================================================
    ESTADO
@@ -840,45 +840,81 @@ function render(freshId) {
   $('btn-pass').style.display = (!busy && !roundOver && turn === 0 && !hasMove(0) && pozo.length === 0) ? '' : 'none';
 }
 
-// Trazado real: la primera ficha va al centro de la mesa; la cadena crece
-// hacia los dos lados y gira 180 grados al topar con el borde (la rama
-// derecha baja de fila, la izquierda sube).
+// Trazado real de mesa: la ficha de salida se ancla en el centro y la cadena
+// avanza en 4 direcciones. Al llegar al borde gira 90 grados: la ficha del
+// codo se coloca perpendicular, la cadena baja (rama derecha) o sube (rama
+// izquierda) y sigue en sentido contrario.
 function chainLayout(u, W) {
-  const gap = 2, rowH = 2 * u + 8;
+  const gap = 3;
   const n = chain.length;
   let o = chain.findIndex(t => t.id === originId);
-  if (o < 0) o = Math.floor(n / 2);
+  if (o < 0) o = 0;
   const isD = i => chain[i].a === chain[i].b;
   const out = [];
-  const put = (i, x, yc, d, flip) => {
-    const w = d ? u : 2 * u, ht = d ? 2 * u : u;
-    out.push({ t: chain[i], x: x, y: yc - ht / 2, w: w, h: ht, d: d, flip: flip });
-  };
+  const MARGIN = u + 2;
 
-  const w0 = isD(o) ? u : 2 * u;
-  const x0 = Math.max(0, Math.min(W - w0, W / 2 - w0 / 2));
-  put(o, x0, 0, isD(o), false);
-
-  // rama derecha
-  let cur = x0 + w0 + gap, dir = 1, yc = 0;
-  for (let i = o + 1; i < n; i++) {
-    const d = isD(i), w = d ? u : 2 * u;
-    if (dir === 1 && cur + w > W) { yc += rowH; dir = -1; cur = W; }
-    else if (dir === -1 && cur - w < 0) { yc += rowH; dir = 1; cur = 0; }
-    put(i, dir === 1 ? cur : cur - w, yc, d, dir !== 1);
-    cur = dir === 1 ? cur + w + gap : cur - w - gap;
+  // Coloca la ficha i entrando por el punto P en la direccion d.
+  // P es el centro del canto por el que entra. Devuelve el punto de salida.
+  function place(i, P, d) {
+    const dbl = isD(i);
+    const L = dbl ? u : 2 * u;      // largo en la direccion de avance
+    const A = dbl ? 2 * u : u;      // ancho perpendicular
+    let x, y, w, ht, cls, flip;
+    if (d.x !== 0) {
+      w = L; ht = A;
+      x = d.x > 0 ? P.x : P.x - L;
+      y = P.y - A / 2;
+      cls = dbl ? 'v' : 'h';
+      flip = d.x < 0;
+    } else {
+      w = A; ht = L;
+      x = P.x - A / 2;
+      y = d.y > 0 ? P.y : P.y - L;
+      cls = dbl ? 'h' : 'v';
+      flip = d.y < 0;
+    }
+    out.push({ t: chain[i], x: x, y: y, w: w, h: ht, cls: cls, flip: flip });
+    return { x: P.x + d.x * (L + gap), y: P.y + d.y * (L + gap) };
   }
 
-  // rama izquierda
-  cur = x0 - gap; dir = -1; yc = 0;
-  for (let i = o - 1; i >= 0; i--) {
-    const d = isD(i), w = d ? u : 2 * u;
-    if (dir === -1 && cur - w < 0) { yc -= rowH; dir = 1; cur = 0; }
-    else if (dir === 1 && cur + w > W) { yc -= rowH; dir = -1; cur = W; }
-    put(i, dir === -1 ? cur - w : cur, yc, d, dir !== -1);
-    cur = dir === -1 ? cur - w - gap : cur + w + gap;
+  // Recorre una rama. vy = +1 baja al girar, -1 sube.
+  function branch(from, to, step, hd0, P0, vy) {
+    let hd = hd0, P = P0;
+    for (let i = from; i !== to; i += step) {
+      const L = isD(i) ? u : 2 * u;
+      const fits = hd === 1 ? (P.x + L <= W - MARGIN) : (P.x - L >= MARGIN);
+      if (!fits) {
+        // codo: ficha perpendicular pegada al final de la fila
+        const cx = P.x - hd * (gap + u / 2);
+        const entry = { x: cx, y: P.y + vy * (u / 2 + gap) };
+        const Pv = place(i, entry, { x: 0, y: vy });
+        hd = -hd;
+        P = { x: Pv.x - hd * (u / 2), y: Pv.y + vy * (u / 2) };
+        continue;
+      }
+      P = place(i, P, { x: hd, y: 0 });
+    }
   }
+
+  // --- ficha de salida, anclada en el centro ---
+  const L0 = isD(o) ? u : 2 * u;
+  const entry0 = { x: W / 2 - L0 / 2, y: 0 };
+  const Pright = place(o, entry0, { x: 1, y: 0 });
+
+  branch(o + 1, n, 1, 1, Pright, 1);
+  branch(o - 1, -1, -1, -1, { x: entry0.x, y: 0 }, -1);
   return out;
+}
+
+function bbox(lay) {
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const it of lay) {
+    if (it.x < x0) x0 = it.x;
+    if (it.x + it.w > x1) x1 = it.x + it.w;
+    if (it.y < y0) y0 = it.y;
+    if (it.y + it.h > y1) y1 = it.y + it.h;
+  }
+  return { x0: x0, x1: x1, y0: y0, y1: y1 };
 }
 
 function renderChain() {
@@ -889,29 +925,25 @@ function renderChain() {
   const H = mesa.clientHeight - 24;
   if (W <= 0 || H <= 0) { requestAnimationFrame(renderChain); return; }
 
-  const SIZES = [34, 30, 26, 23, 20, 17, 15, 13, 11, 9];
+  const SIZES = [34, 30, 26, 23, 20, 17, 15, 13, 11, 9, 7];
   let lay = null, bb = null;
   for (const u of SIZES) {
-    if (2 * u > W) continue;
+    if (2 * u + u > W) continue;
     const L = chainLayout(u, W);
-    let y0 = Infinity, y1 = -Infinity;
-    for (const it of L) { if (it.y < y0) y0 = it.y; if (it.y + it.h > y1) y1 = it.y + it.h; }
-    if (y1 - y0 <= H) { lay = L; bb = { y0: y0, y1: y1 }; break; }
+    const b = bbox(L);
+    if (b.y1 - b.y0 <= H) { lay = L; bb = b; break; }
   }
   if (!lay) {
-    const u = SIZES[SIZES.length - 1];
-    lay = chainLayout(u, W);
-    let y0 = Infinity, y1 = -Infinity;
-    for (const it of lay) { if (it.y < y0) y0 = it.y; if (it.y + it.h > y1) y1 = it.y + it.h; }
-    bb = { y0: y0, y1: y1 };
+    lay = chainLayout(SIZES[SIZES.length - 1], W);
+    bb = bbox(lay);
   }
 
   const dy = -bb.y0 + Math.max(0, (H - (bb.y1 - bb.y0)) / 2);
   let s = '<div class="chain-abs">';
   for (const it of lay) {
-    const cls = 'tile ' + (it.d ? 'v' : 'h') + (it.flip ? ' flip' : '');
-    s += '<div class="' + cls + '" style="left:' + Math.round(it.x) + 'px;top:' + Math.round(it.y + dy)
-      + 'px;width:' + it.w + 'px;height:' + it.h + 'px">' + halfHTML(it.t.a) + halfHTML(it.t.b) + '</div>';
+    s += '<div class="tile ' + it.cls + (it.flip ? ' flip' : '') + '" style="left:' + Math.round(it.x)
+      + 'px;top:' + Math.round(it.y + dy) + 'px;width:' + Math.round(it.w) + 'px;height:' + Math.round(it.h)
+      + 'px">' + halfHTML(it.t.a) + halfHTML(it.t.b) + '</div>';
   }
   s += '</div>';
   mesa.innerHTML = s;
