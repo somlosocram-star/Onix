@@ -209,14 +209,28 @@ body.light .card .c-desc { color: #56554d; }
 body.light .card.small .c-roman { color: var(--text); }
 
 /* ---------- Fichas de dominó ---------- */
-.tile { display: flex; background: var(--tile-face); border: 1px solid var(--tile-edge); border-radius: 5px; box-shadow: 0 1px 2px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.55); flex-shrink: 0; position: relative; overflow: hidden; }
+.tile {
+  display: flex; flex-shrink: 0; position: relative; overflow: hidden;
+  background: linear-gradient(158deg, #fdfcf8 0%, #f4f2ea 48%, #e8e5d9 100%);
+  border: 1px solid #c4c1b4; border-radius: 13%;
+  box-shadow: 0 1px 2px rgba(0,0,0,.30), 0 3px 8px rgba(0,0,0,.16),
+              inset 0 1px 0 rgba(255,255,255,.95), inset 0 -1px 0 rgba(0,0,0,.07);
+}
+.tile::after {
+  content: ''; position: absolute; inset: 5%; border-radius: 9%;
+  border: 1px solid rgba(0,0,0,.05); pointer-events: none;
+}
 .tile.v { flex-direction: column; width: var(--tw); height: calc(var(--tw) * 2); }
 .tile.h { flex-direction: row; width: calc(var(--tw) * 2); height: var(--tw); }
 .tile .half { flex: 1 1 0; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); padding: 12%; gap: 4%; }
-.tile.v .half:first-child { border-bottom: 1px solid var(--tile-edge); }
-.tile.h .half:first-child { border-right: 1px solid var(--tile-edge); }
+.tile.v .half:first-child { border-bottom: 1px solid #bfbcae; box-shadow: 0 1px 0 rgba(255,255,255,.9); }
+.tile.h .half:first-child { border-right: 1px solid #bfbcae; box-shadow: 1px 0 0 rgba(255,255,255,.9); }
 .tile .cell { display: flex; align-items: center; justify-content: center; }
-.tile .cell.p::after { content: ''; width: 78%; aspect-ratio: 1; border-radius: 50%; background: var(--tile-pip); box-shadow: inset 0 -1px 1px rgba(255,255,255,.25); }
+.tile .cell.p::after {
+  content: ''; width: 76%; aspect-ratio: 1; border-radius: 50%;
+  background: radial-gradient(circle at 34% 28%, #55555a 0%, #232327 45%, #101012 100%);
+  box-shadow: inset 0 1px 1.5px rgba(0,0,0,.65), 0 .5px 0 rgba(255,255,255,.7);
+}
 
 /* ---------- Pantalla de juego ---------- */
 #screen-game { padding: 0; display: none; flex-direction: column; justify-content: flex-start; text-align: center; }
@@ -254,6 +268,23 @@ body.light #mesa { box-shadow: inset 0 0 0 5px color-mix(in srgb, var(--bg) 70%,
 .chain-abs { position: absolute; inset: 12px; z-index: 1; }
 .chain-abs .tile { position: absolute; }
 .chain-abs .tile.flip { transform: rotate(180deg); }
+.slot {
+  position: absolute; border: 1px dashed var(--muted); border-radius: 13%;
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+  opacity: .45; transition: opacity .18s, border-color .18s, background .18s;
+  pointer-events: none;
+}
+.slot.live { opacity: 1; border-style: solid; border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.slot.magnet { animation: magnet .5s ease-in-out infinite; }
+@keyframes magnet { 0%,100%{ box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 40%, transparent); } 50%{ box-shadow: 0 0 0 7px transparent; } }
+#ghost {
+  position: fixed; z-index: 800; pointer-events: none; margin: 0;
+  transition: none; will-change: transform;
+  box-shadow: 0 6px 18px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.95);
+}
+#ghost.snapped { transition: left .13s cubic-bezier(.2,.9,.3,1), top .13s cubic-bezier(.2,.9,.3,1), width .13s, height .13s; }
+#hand .tile.dragging { opacity: .18; }
+#hand .tile { touch-action: none; }
 #mesa .tile { animation: tileDrop .3s ease both; }
 @keyframes tileDrop { 0%{opacity:0;} 100%{opacity:1;} }
 .chain-empty { color: var(--muted); font-family: 'IBM Plex Mono', monospace; font-size: .6rem; letter-spacing: .3em; text-transform: uppercase; }
@@ -318,7 +349,7 @@ body.light #mesa { box-shadow: inset 0 0 0 5px color-mix(in srgb, var(--bg) 70%,
   <div class="tut-sub">ónix · dominó por rondas</div>
   <div class="tut-step"><div class="tut-num">1</div><div class="tut-text">Dominó <b>doble seis</b>: 28 fichas. Se reparten 7 por jugador (6 si sois cuatro) y el resto queda en el <b>pozo</b>.</div></div>
   <div class="tut-step"><div class="tut-num">2</div><div class="tut-text">Sale quien tenga el <b>doble más alto</b>. En las rondas siguientes sale quien ganó la anterior.</div></div>
-  <div class="tut-step"><div class="tut-num">3</div><div class="tut-text">En tu turno casas una ficha por cualquiera de los <b>dos extremos</b>. Si no puedes, <b>robas del pozo</b> hasta poder; si el pozo está vacío, pasas.</div></div>
+  <div class="tut-step"><div class="tut-num">3</div><div class="tut-text"><b>Arrastra</b> una ficha hasta uno de los dos extremos: al acercarte, el hueco la atrae sola. Si no puedes, <b>robas del pozo</b> hasta poder; si el pozo está vacío, pasas.</div></div>
   <div class="tut-step"><div class="tut-num">4</div><div class="tut-text">La ronda acaba cuando alguien se queda <b>sin fichas</b>, o cuando nadie puede jugar (<b>cierre</b>): entonces gana quien menos puntos tenga en la mano.</div></div>
   <div class="tut-step"><div class="tut-num">★</div><div class="tut-text">El ganador de la ronda resta <b>5 puntos</b>. Los demás suman los <b>puntos de las fichas</b> que les queden: un 5/2 y un 1/3 son 11.</div></div>
   <div class="tut-step"><div class="tut-num">♛</div><div class="tut-text">Los puntos son malos: la partida acaba en cuanto alguien <b>llega al límite</b> (50, 100 o 150) y gana quien tenga el <b>total más bajo</b>.</div></div>
@@ -338,7 +369,7 @@ body.light #mesa { box-shadow: inset 0 0 0 5px color-mix(in srgb, var(--bg) 70%,
   <div class="btn-row">
     <button class="btn" id="btn-play">Jugar</button>
   </div>
-  <div class="ver-tag" id="ver-tag">v0.9.0</div>
+  <div class="ver-tag" id="ver-tag">v0.10.0</div>
 </div>
 
 <!-- SETUP -->
@@ -421,7 +452,7 @@ body.light #mesa { box-shadow: inset 0 0 0 5px color-mix(in srgb, var(--bg) 70%,
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
-const VERSION = 'v0.9.0';
+const VERSION = 'v0.10.0';
 
 /* =====================================================================
    ESTADO
@@ -809,7 +840,7 @@ function render(freshId) {
   else if (turn !== 0) tl.innerHTML = '<span class="thinking">' + NAMES[turn] + ' piensa<span class="dots"></span></span>';
   else if (!hasMove(0)) tl.innerHTML = pozo.length ? 'no puedes casar · <b>roba</b>' : 'no puedes casar · <b>pasa</b>';
   else if (selected) tl.innerHTML = 'elige <b>extremo</b>';
-  else tl.innerHTML = 'tu turno · <b>elige ficha</b>';
+  else tl.innerHTML = 'tu turno · <b>arrastra una ficha</b>';
 
   // cadena
   renderChain();
@@ -835,7 +866,10 @@ function render(freshId) {
   }
   hd.innerHTML = hs;
   hd.querySelectorAll('.tile').forEach(el => {
-    el.addEventListener('click', () => selectTile(el.dataset.id));
+    el.addEventListener('pointerdown', dragStart);
+    el.addEventListener('pointermove', dragMove);
+    el.addEventListener('pointerup', dragEnd);
+    el.addEventListener('pointercancel', dragEnd);
   });
 
   // botones
@@ -885,6 +919,19 @@ function chainLayout(u, W) {
   // a la misma altura unas de otras.
   const pitch = 2 * u + gap;
 
+  // Hueco donde caeria la siguiente ficha de un extremo.
+  function slotAt(P, hd, vy, rev) {
+    const L = 2 * u, A = u, RES = 2 * u;
+    const fits = hd === 1 ? (P.x + L + RES <= W) : (P.x - L - RES >= 0);
+    if (fits) {
+      return { x: hd === 1 ? P.x : P.x - L, y: P.y - A / 2, w: L, h: A, cls: 'h', dx: hd, dy: 0, rev: rev };
+    }
+    let cx = P.x + hd * (A / 2);
+    cx = Math.max(A / 2, Math.min(W - A / 2, cx));
+    const ey = P.y - vy * (u / 2);
+    return { x: cx - A / 2, y: vy > 0 ? ey : ey - L, w: A, h: L, cls: 'v', dx: 0, dy: vy, rev: rev };
+  }
+
   function branch(from, to, step, hd0, P0, vy, rev) {
     let hd = hd0, P = P0;
     for (let i = from; i !== to; i += step) {
@@ -909,6 +956,7 @@ function chainLayout(u, W) {
       }
       P = place(i, P, { x: hd, y: 0 }, rev);
     }
+    return { P: P, hd: hd };
   }
 
   // --- ficha de salida, anclada en el centro ---
@@ -916,9 +964,15 @@ function chainLayout(u, W) {
   const entry0 = { x: W / 2 - L0 / 2, y: 0 };
   const Pright = place(o, entry0, { x: 1, y: 0 }, false);
 
-  branch(o + 1, n, 1, 1, Pright, 1, false);
-  branch(o - 1, -1, -1, -1, { x: entry0.x, y: 0 }, -1, true);
-  return out;
+  const endR = branch(o + 1, n, 1, 1, Pright, 1, false);
+  const endL = branch(o - 1, -1, -1, -1, { x: entry0.x, y: 0 }, -1, true);
+  return {
+    tiles: out,
+    ends: {
+      R: slotAt(endR.P, endR.hd, 1, false),
+      L: slotAt(endL.P, endL.hd, -1, true)
+    }
+  };
 }
 
 function bbox(lay) {
@@ -932,36 +986,190 @@ function bbox(lay) {
   return { x0: x0, x1: x1, y0: y0, y1: y1 };
 }
 
+let SLOTS = { L: null, R: null };
+let lastU = 26;
+
 function renderChain() {
   const mesa = $('mesa');
   if (!mesa) return;
-  if (!chain.length) { mesa.innerHTML = '<div class="chain-empty">sale la primera ficha</div>'; return; }
   const W = mesa.clientWidth - 24;
   const H = mesa.clientHeight - 24;
   if (W <= 0 || H <= 0) { requestAnimationFrame(renderChain); return; }
 
-  const SIZES = [34, 30, 26, 23, 20, 17, 15, 13, 11, 9, 7];
-  let lay = null, bb = null;
-  for (const u of SIZES) {
-    if (2 * u + u > W) continue;
-    const L = chainLayout(u, W);
-    const b = bbox(L);
-    if (b.y1 - b.y0 <= H) { lay = L; bb = b; break; }
-  }
-  if (!lay) {
-    lay = chainLayout(SIZES[SIZES.length - 1], W);
-    bb = bbox(lay);
+  if (!chain.length) {
+    lastU = Math.min(30, Math.floor(W / 4));
+    SLOTS = { L: null, R: { x: W / 2 - lastU, y: H / 2 - lastU / 2, w: 2 * lastU, h: lastU, cls: 'h', dx: 1, dy: 0, rev: false } };
+    mesa.innerHTML = '<div class="chain-abs">' + slotHTML() + '</div>';
+    return;
   }
 
+  const SIZES = [34, 30, 26, 23, 20, 17, 15, 13, 11, 9, 7];
+  let lay = null, bb = null, u = SIZES[SIZES.length - 1];
+  for (const s of SIZES) {
+    if (3 * s > W) continue;
+    const L = chainLayout(s, W);
+    const b = bbox(L.tiles);
+    if (b.y1 - b.y0 <= H) { lay = L; bb = b; u = s; break; }
+  }
+  if (!lay) { lay = chainLayout(u, W); bb = bbox(lay.tiles); }
+  lastU = u;
+
   const dy = -bb.y0 + Math.max(0, (H - (bb.y1 - bb.y0)) / 2);
+  SLOTS = {
+    L: Object.assign({}, lay.ends.L, { y: lay.ends.L.y + dy }),
+    R: Object.assign({}, lay.ends.R, { y: lay.ends.R.y + dy })
+  };
+
   let s = '<div class="chain-abs">';
-  for (const it of lay) {
+  for (const it of lay.tiles) {
     s += '<div class="tile ' + it.cls + (it.flip ? ' flip' : '') + '" style="left:' + Math.round(it.x)
       + 'px;top:' + Math.round(it.y + dy) + 'px;width:' + Math.round(it.w) + 'px;height:' + Math.round(it.h)
       + 'px">' + halfHTML(it.t.a) + halfHTML(it.t.b) + '</div>';
   }
+  s += slotHTML();
   s += '</div>';
   mesa.innerHTML = s;
+}
+
+// Huecos: solo se pintan en tu turno y solo donde te encaja alguna ficha.
+function slotHTML() {
+  if (busy || roundOver || turn !== 0) return '';
+  let s = '';
+  for (const side of ['L', 'R']) {
+    const sl = SLOTS[side];
+    if (!sl) continue;
+    const util = hands[0].some(t => !chain.length ? true : (side === 'L' ? fitsL(t) : fitsR(t)));
+    if (!util) continue;
+    s += '<div class="slot" data-side="' + side + '" style="left:' + Math.round(sl.x) + 'px;top:'
+      + Math.round(sl.y) + 'px;width:' + Math.round(sl.w) + 'px;height:' + Math.round(sl.h) + 'px"></div>';
+  }
+  return s;
+}
+
+/* =====================================================================
+   ARRASTRE CON IMÁN
+   ===================================================================== */
+let drag = null;
+const IMAN = 120;   // radio de captura en px
+
+function slotRect(side) {
+  const sl = SLOTS[side];
+  if (!sl) return null;
+  const cont = document.querySelector('#mesa .chain-abs');
+  if (!cont) return null;
+  const r = cont.getBoundingClientRect();
+  return { cx: r.left + sl.x + sl.w / 2, cy: r.top + sl.y + sl.h / 2, sl: sl };
+}
+
+function sideValido(t, side) {
+  if (!chain.length) return side === 'R';
+  return side === 'L' ? fitsL(t) : fitsR(t);
+}
+
+// Mitades tal y como quedaran al colocarse: por la derecha se entra por 'a',
+// por la izquierda por 'b'.
+function mitades(t, side) {
+  if (!chain.length) return [t.a, t.b];
+  const e = side === 'L' ? leftEnd() : rightEnd();
+  if (side === 'R') return (t.a === e) ? [t.a, t.b] : [t.b, t.a];
+  return (t.b === e) ? [t.a, t.b] : [t.b, t.a];
+}
+
+function dragStart(e) {
+  if (busy || turn !== 0 || roundOver) return;
+  const el = e.currentTarget;
+  const t = hands[0].find(x => x.id === el.dataset.id);
+  if (!t || !canPlay(t)) return;
+  drag = { t: t, el: el, x0: e.clientX, y0: e.clientY, moved: false, side: null };
+  try { el.setPointerCapture(e.pointerId); } catch (err) {}
+}
+
+function dragMove(e) {
+  if (!drag) return;
+  if (!drag.moved) {
+    if (Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 10) return;
+    drag.moved = true;
+    crearFantasma();
+  }
+  moverFantasma(e.clientX, e.clientY);
+  e.preventDefault();
+}
+
+function dragEnd(e) {
+  if (!drag) return;
+  const d = drag;
+  drag = null;
+  const g = $('ghost');
+  if (d.el) d.el.classList.remove('dragging');
+  if (!d.moved) {
+    if (g) g.remove();
+    selectTile(d.t.id);
+    return;
+  }
+  if (d.side) {
+    if (g) g.remove();
+    selected = d.t.id;
+    doHumanPlay(d.side);
+  } else {
+    if (g) g.remove();
+    render();
+  }
+}
+
+function crearFantasma() {
+  drag.el.classList.add('dragging');
+  const r = drag.el.getBoundingClientRect();
+  const g = document.createElement('div');
+  g.id = 'ghost';
+  g.className = 'tile v';
+  g.style.width = r.width + 'px';
+  g.style.height = r.height + 'px';
+  g.innerHTML = halfHTML(drag.t.a) + halfHTML(drag.t.b);
+  document.body.appendChild(g);
+  drag.libreW = r.width; drag.libreH = r.height;
+}
+
+function moverFantasma(x, y) {
+  const g = $('ghost');
+  if (!g) return;
+
+  // imán: busca el extremo compatible más cercano
+  let mejor = null, mejorD = IMAN;
+  for (const side of ['L', 'R']) {
+    if (!sideValido(drag.t, side)) continue;
+    const r = slotRect(side);
+    if (!r) continue;
+    const d = Math.hypot(x - r.cx, y - r.cy);
+    if (d < mejorD) { mejorD = d; mejor = { side: side, r: r }; }
+  }
+
+  document.querySelectorAll('.slot').forEach(s => {
+    s.classList.toggle('live', sideValido(drag.t, s.dataset.side));
+    s.classList.toggle('magnet', !!mejor && s.dataset.side === mejor.side);
+  });
+
+  if (mejor) {
+    if (drag.side !== mejor.side) beep(520, 0.03);
+    drag.side = mejor.side;
+    const sl = mejor.r.sl;
+    const [a, b] = mitades(drag.t, mejor.side);
+    const adelante = (sl.dx > 0 || sl.dy > 0);
+    const flip = sl.rev ? adelante : !adelante;
+    g.className = 'tile ' + sl.cls + (flip ? ' flip' : '') + ' snapped';
+    g.style.width = sl.w + 'px';
+    g.style.height = sl.h + 'px';
+    g.style.left = (mejor.r.cx - sl.w / 2) + 'px';
+    g.style.top = (mejor.r.cy - sl.h / 2) + 'px';
+    g.innerHTML = halfHTML(a) + halfHTML(b);
+  } else {
+    drag.side = null;
+    g.className = 'tile v';
+    g.style.width = drag.libreW + 'px';
+    g.style.height = drag.libreH + 'px';
+    g.style.left = (x - drag.libreW / 2) + 'px';
+    g.style.top = (y - drag.libreH - 26) + 'px';
+    g.innerHTML = halfHTML(drag.t.a) + halfHTML(drag.t.b);
+  }
 }
 
 /* =====================================================================

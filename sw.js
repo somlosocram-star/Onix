@@ -1,4 +1,4 @@
-const CACHE = 'onix-v0.9.0';
+const CACHE = 'onix-v0.10.0';
 const ASSETS = [
   './', './index.html', './manifest.webmanifest',
   './icon-192.png', './icon-512.png', './favicon-32.png', './apple-touch-icon.png'
