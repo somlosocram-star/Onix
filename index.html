@@ -267,7 +267,7 @@ body.light #mesa { box-shadow: inset 0 0 0 5px color-mix(in srgb, var(--bg) 70%,
 #hand { --tw: 38px; display: flex; gap: .4rem; padding: .5rem 1rem; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; justify-content: safe center; min-height: calc(38px * 2 + 1rem); align-items: center; }
 #hand::-webkit-scrollbar { display: none; }
 #hand .tile { cursor: pointer; transition: transform .18s, box-shadow .18s, opacity .2s; }
-#hand .tile.dead { opacity: .32; filter: grayscale(1); }
+#hand .tile.dead { opacity: .3; filter: grayscale(1); animation: none !important; }
 #hand .tile.sel { transform: translateY(-10px); box-shadow: 0 0 0 2px var(--accent), 0 6px 14px rgba(0,0,0,.4); }
 #hand .tile.fresh { animation: tileDrop .3s cubic-bezier(.3,1.3,.5,1) both; }
 
@@ -321,7 +321,7 @@ body.light #mesa { box-shadow: inset 0 0 0 5px color-mix(in srgb, var(--bg) 70%,
   <div class="tut-step"><div class="tut-num">3</div><div class="tut-text">En tu turno casas una ficha por cualquiera de los <b>dos extremos</b>. Si no puedes, <b>robas del pozo</b> hasta poder; si el pozo está vacío, pasas.</div></div>
   <div class="tut-step"><div class="tut-num">4</div><div class="tut-text">La ronda acaba cuando alguien se queda <b>sin fichas</b>, o cuando nadie puede jugar (<b>cierre</b>): entonces gana quien menos puntos tenga en la mano.</div></div>
   <div class="tut-step"><div class="tut-num">★</div><div class="tut-text">El ganador de la ronda resta <b>5 puntos</b>. Los demás suman los <b>puntos de las fichas</b> que les queden: un 5/2 y un 1/3 son 11.</div></div>
-  <div class="tut-step"><div class="tut-num">♛</div><div class="tut-text">Al terminar todas las rondas gana quien tenga el <b>total más bajo</b>.</div></div>
+  <div class="tut-step"><div class="tut-num">♛</div><div class="tut-text">Los puntos son malos: la partida acaba en cuanto alguien <b>llega al límite</b> (50, 100 o 150) y gana quien tenga el <b>total más bajo</b>.</div></div>
   <button class="btn-secondary btn tut-close" id="tut-close">cerrar</button>
 </div>
 
@@ -338,7 +338,7 @@ body.light #mesa { box-shadow: inset 0 0 0 5px color-mix(in srgb, var(--bg) 70%,
   <div class="btn-row">
     <button class="btn" id="btn-play">Jugar</button>
   </div>
-  <div class="ver-tag" id="ver-tag">v0.6.0</div>
+  <div class="ver-tag" id="ver-tag">v0.8.0</div>
 </div>
 
 <!-- SETUP -->
@@ -353,11 +353,11 @@ body.light #mesa { box-shadow: inset 0 0 0 5px color-mix(in srgb, var(--bg) 70%,
     <button class="card small" data-players="4"><div class="c-roman">IV</div><div class="c-name">4</div></button>
   </div>
 
-  <div class="section-label">rondas</div>
-  <div class="cards" id="rounds-cards">
-    <button class="card small selected" data-rounds="3"><div class="c-roman">III</div><div class="c-name">3</div></button>
-    <button class="card small" data-rounds="5"><div class="c-roman">V</div><div class="c-name">5</div></button>
-    <button class="card small" data-rounds="7"><div class="c-roman">VII</div><div class="c-name">7</div></button>
+  <div class="section-label">se pierde al llegar a</div>
+  <div class="cards" id="limit-cards">
+    <button class="card small" data-limit="50"><div class="c-roman">L</div><div class="c-name">50</div></button>
+    <button class="card small selected" data-limit="100"><div class="c-roman">C</div><div class="c-name">100</div></button>
+    <button class="card small" data-limit="150"><div class="c-roman">CL</div><div class="c-name">150</div></button>
   </div>
 
   <div class="btn-row">
@@ -421,7 +421,7 @@ body.light #mesa { box-shadow: inset 0 0 0 5px color-mix(in srgb, var(--bg) 70%,
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
-const VERSION = 'v0.6.0';
+const VERSION = 'v0.8.0';
 
 /* =====================================================================
    ESTADO
@@ -433,7 +433,7 @@ const PIPS = {
 };
 
 let nPlayers = 2;
-let nRounds = 3;
+let limit = 100;
 let round = 0;
 let totals = [];
 let hands = [];
@@ -622,7 +622,8 @@ function endRound(winner, how) {
 }
 
 function showRoundSummary(winner, how, deltas) {
-  const last = round >= nRounds;
+  let last = false;
+  for (let p = 0; p < nPlayers; p++) if (totals[p] >= limit) last = true;
   const ov = last ? $('end-overlay') : $('round-overlay');
   const titleEl = last ? $('end-title') : $('rnd-title');
   const subEl = last ? $('end-sub') : $('rnd-sub');
@@ -632,10 +633,12 @@ function showRoundSummary(winner, how, deltas) {
     let best = Infinity, champ = 0;
     for (let p = 0; p < nPlayers; p++) if (totals[p] < best) { best = totals[p]; champ = p; }
     titleEl.innerHTML = champ === 0 ? '<em>Ganas</em>' : '<em>Gana ' + NAMES[champ] + '</em>';
-    subEl.textContent = 'total ' + best + ' puntos';
+    let peor = -Infinity, pierde = 0;
+    for (let p = 0; p < nPlayers; p++) if (totals[p] > peor) { peor = totals[p]; pierde = p; }
+    subEl.textContent = NAMES[pierde] + ' llega a ' + peor + ' · ganas con ' + best;
   } else {
     titleEl.innerHTML = winner === 0 ? '<em>Ronda tuya</em>' : '<em>Ronda de ' + NAMES[winner] + '</em>';
-    subEl.textContent = (how === 'domino' ? 'dominó' : 'cierre') + ' · ronda ' + round + ' de ' + nRounds;
+    subEl.textContent = (how === 'domino' ? 'dominó' : 'cierre') + ' · ronda ' + round;
   }
 
   const order = [];
@@ -799,7 +802,7 @@ function render(freshId) {
   }
   $('status-bar').innerHTML = sb;
 
-  $('round-line').textContent = 'ronda ' + round + ' / ' + nRounds + ' · pozo ' + pozo.length;
+  $('round-line').textContent = 'ronda ' + round + ' · a ' + limit + ' · pozo ' + pozo.length;
 
   const tl = $('turn-line');
   if (roundOver) tl.innerHTML = '';
@@ -852,11 +855,9 @@ function chainLayout(u, W) {
   const isD = i => chain[i].a === chain[i].b;
   const out = [];
 
-  // Coloca la ficha i entrando por el punto P en la direccion d.
-  // P es el centro del canto por el que entra. Devuelve el punto de salida.
-  // rev = false: la cadena se recorre hacia delante y la ficha se entra por su
-  // mitad 'a'. rev = true: rama izquierda, se entra por la mitad 'b'.
-  function place(i, P, d, rev) {
+  // rev = false: la cadena se recorre hacia delante y se entra por la mitad
+  // 'a'. rev = true: rama izquierda, se entra por la mitad 'b'.
+  function place(i, P, d, rev, seg) {
     const dbl = isD(i);
     const L = dbl ? u : 2 * u;      // largo en la direccion de avance
     const A = dbl ? 2 * u : u;      // ancho perpendicular
@@ -874,34 +875,63 @@ function chainLayout(u, W) {
       y = d.y > 0 ? P.y : P.y - L;
       cls = dbl ? 'h' : 'v';
     }
-    out.push({ t: chain[i], x: x, y: y, w: w, h: ht, cls: cls, flip: flip });
+    out.push({ t: chain[i], x: x, y: y, w: w, h: ht, cls: cls, flip: flip, seg: seg });
     return { x: P.x + d.x * (L + gap), y: P.y + d.y * (L + gap) };
   }
 
-  // Recorre una rama. vy = +1 baja al girar, -1 sube.
+  // Separa filas solo cuando de verdad chocan (pasa con los dobles, que
+  // sobresalen media ficha). Asi el codo queda pegado en el caso normal.
+  function resolve(first, vy) {
+    let maxSeg = 0;
+    for (let k = first; k < out.length; k++) if (out[k].seg > maxSeg) maxSeg = out[k].seg;
+    for (let s = 1; s <= maxSeg; s++) {
+      let delta = 0;
+      for (let k = first; k < out.length; k++) {
+        if (out[k].seg < s) continue;
+        const Q = out[k];
+        for (let j = 0; j < out.length; j++) {
+          if (j >= first && out[j].seg >= s) continue;
+          const R = out[j];
+          if (Q.x >= R.x + R.w - 0.5 || R.x >= Q.x + Q.w - 0.5) continue;
+          const d = vy > 0 ? (R.y + R.h + gap) - Q.y : (Q.y + Q.h + gap) - R.y;
+          if (d > delta) delta = d;
+        }
+      }
+      if (delta > 0) {
+        for (let k = first; k < out.length; k++) if (out[k].seg >= s) out[k].y += vy * delta;
+      }
+    }
+  }
+
+  // Recorre una rama. vy = +1 gira hacia abajo, -1 hacia arriba.
   function branch(from, to, step, hd0, P0, vy, rev) {
-    let hd = hd0, P = P0;
+    const first = out.length;
+    let hd = hd0, P = P0, seg = 0;
     for (let i = from; i !== to; i += step) {
-      const L = isD(i) ? u : 2 * u;
-      const M = (isD(i) ? u : u / 2) + 2;   // hueco que necesita el codo
-      const fits = hd === 1 ? (P.x + L <= W - M) : (P.x - L >= M);
+      const L = isD(i) ? u : 2 * u;   // largo
+      const A = isD(i) ? 2 * u : u;   // ancho (lo que ocupa de canto al girar)
+      const fits = hd === 1 ? (P.x + L <= W) : (P.x - L >= 0);
       if (!fits) {
-        // holgura u (no u/2): un doble sobresale media ficha a cada lado
-        const cx = P.x - hd * (gap + u / 2);
-        const entry = { x: cx, y: P.y + vy * (u + gap) };
-        const Pv = place(i, entry, { x: 0, y: vy }, rev);
+        // Codo en L: la ficha se pone de canto justo al final de la fila,
+        // alineada con su borde, y la cadena sigue desde su otro extremo.
+        seg++;
+        let cx = P.x + hd * (A / 2);
+        cx = Math.max(A / 2, Math.min(W - A / 2, cx));
+        const entry = { x: cx, y: P.y - vy * (u / 2) };
+        place(i, entry, { x: 0, y: vy }, rev, seg);
         hd = -hd;
-        P = { x: Pv.x - hd * (u / 2), y: Pv.y + vy * u };
+        P = { x: cx + hd * (A / 2 + gap), y: entry.y + vy * (L - u / 2) };
         continue;
       }
-      P = place(i, P, { x: hd, y: 0 }, rev);
+      P = place(i, P, { x: hd, y: 0 }, rev, seg);
     }
+    resolve(first, vy);
   }
 
   // --- ficha de salida, anclada en el centro ---
   const L0 = isD(o) ? u : 2 * u;
   const entry0 = { x: W / 2 - L0 / 2, y: 0 };
-  const Pright = place(o, entry0, { x: 1, y: 0 }, false);
+  const Pright = place(o, entry0, { x: 1, y: 0 }, false, 0);
 
   branch(o + 1, n, 1, 1, Pright, 1, false);
   branch(o - 1, -1, -1, -1, { x: entry0.x, y: 0 }, -1, true);
@@ -980,11 +1010,11 @@ $('players-cards').addEventListener('click', e => {
   c.classList.add('selected');
   nPlayers = +c.dataset.players;
 });
-$('rounds-cards').addEventListener('click', e => {
+$('limit-cards').addEventListener('click', e => {
   const c = e.target.closest('.card'); if (!c) return;
-  $('rounds-cards').querySelectorAll('.card').forEach(x => x.classList.remove('selected'));
+  $('limit-cards').querySelectorAll('.card').forEach(x => x.classList.remove('selected'));
   c.classList.add('selected');
-  nRounds = +c.dataset.rounds;
+  limit = +c.dataset.limit;
 });
 
 $('btn-start').addEventListener('click', () => { newMatch(); });
