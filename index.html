@@ -191,6 +191,7 @@ body.light .seal { box-shadow: inset 0 0 20px rgba(0,0,0,.05); }
 .btn-secondary:hover, .btn-secondary:active { border-color: var(--text); color: var(--text); background: transparent; }
 .btn-row { display: flex; flex-direction: column; gap: .8rem; align-items: center; }
 .btn-back-row { margin-top: 1.4rem; }
+.ver-tag { position: absolute; bottom: max(.9rem, env(safe-area-inset-bottom)); left: 0; right: 0; text-align: center; font-family: 'IBM Plex Mono', monospace; font-size: .5rem; letter-spacing: .3em; color: var(--muted); opacity: .55; text-transform: uppercase; }
 .section-label { font-family: 'IBM Plex Mono', monospace; font-size: .58rem; letter-spacing: .3em; color: var(--muted); text-transform: uppercase; margin-bottom: .7rem; }
 
 .cards { display: flex; gap: .8rem; flex-wrap: wrap; justify-content: center; margin-bottom: 1.6rem; }
@@ -246,14 +247,18 @@ body.light .card.small .c-roman { color: var(--text); }
               inset 0 0 0 6px var(--line),
               inset 0 0 34px rgba(0,0,0,.30);
   display: flex; align-items: center; justify-content: center;
-  padding: .7rem; overflow: hidden;
+  padding: .7rem .8rem; overflow: hidden;
 }
 body.light #mesa { box-shadow: inset 0 0 0 5px color-mix(in srgb, var(--bg) 70%, transparent), inset 0 0 0 6px var(--line), inset 0 0 34px rgba(0,0,0,.07); }
 #mesa::after { content: ''; position: absolute; inset: 10px; border: 1px dotted var(--line); border-radius: 10px; pointer-events: none; opacity: .55; }
-.rows { display: flex; flex-direction: column; align-items: center; gap: 3px; position: relative; z-index: 1; }
-.row { display: flex; align-items: center; gap: 2px; }
+.rows { display: flex; flex-direction: column; gap: 4px; position: relative; z-index: 1; width: 100%; }
+.row { display: flex; align-items: center; gap: 2px; width: 100%; justify-content: flex-start; position: relative; }
 .row.rev { flex-direction: row-reverse; }
 .row.rev .tile { transform: rotate(180deg); }
+/* codo: marca el giro de la serpiente */
+.row.turn::after { content: ''; position: absolute; bottom: -5px; width: 1px; height: 6px; background: var(--muted); opacity: .5; }
+.row.turn:not(.rev)::after { right: 1px; }
+.row.turn.rev::after { left: 1px; }
 #mesa .tile { animation: tileDrop .3s ease both; }
 @keyframes tileDrop { 0%{opacity:0;} 100%{opacity:1;} }
 .chain-empty { color: var(--muted); font-family: 'IBM Plex Mono', monospace; font-size: .6rem; letter-spacing: .3em; text-transform: uppercase; }
@@ -338,6 +343,7 @@ body.light #mesa { box-shadow: inset 0 0 0 5px color-mix(in srgb, var(--bg) 70%,
   <div class="btn-row">
     <button class="btn" id="btn-play">Jugar</button>
   </div>
+  <div class="ver-tag" id="ver-tag">v0.3.0</div>
 </div>
 
 <!-- SETUP -->
@@ -420,7 +426,7 @@ body.light #mesa { box-shadow: inset 0 0 0 5px color-mix(in srgb, var(--bg) 70%,
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
-const VERSION = 'v0.2.0';
+const VERSION = 'v0.3.0';
 
 /* =====================================================================
    ESTADO
@@ -790,7 +796,7 @@ function render(freshId) {
     sb += '<div class="stat-chip' + (p === turn && !roundOver ? ' active' : '') + '">'
       + '<div class="cn">' + NAMES[p] + '</div>'
       + '<div class="cv">' + totals[p] + '</div>'
-      + '<div class="cl">' + hands[p].length + ' fichas</div>'
+      + '<div class="cl">' + hands[p].length + (hands[p].length === 1 ? ' ficha' : ' fichas') + '</div>'
       + '</div>';
   }
   $('status-bar').innerHTML = sb;
@@ -871,7 +877,7 @@ function renderChain() {
 
   let s = '<div class="rows" style="--tw:' + u + 'px">';
   for (let i = 0; i < rows.length; i++) {
-    s += '<div class="row' + (i % 2 ? ' rev' : '') + '">';
+    s += '<div class="row' + (i % 2 ? ' rev' : '') + (i < rows.length - 1 ? ' turn' : '') + '">';
     for (const t of rows[i]) s += tileHTML(t, t.a === t.b ? 'v' : 'h');
     s += '</div>';
   }
@@ -957,6 +963,7 @@ $('sound-toggle').addEventListener('click', () => {
 
 /* ---------- init ---------- */
 (function init() {
+  const vt = $('ver-tag'); if (vt) vt.textContent = VERSION;
   try {
     if (localStorage.getItem('onix_theme') === 'light') document.body.classList.add('light');
     if (localStorage.getItem('onix_sound') === '0') { sound = false; $('sound-toggle').classList.add('muted'); }
