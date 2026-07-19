@@ -338,7 +338,7 @@ body.light #mesa { box-shadow: inset 0 0 0 5px color-mix(in srgb, var(--bg) 70%,
   <div class="btn-row">
     <button class="btn" id="btn-play">Jugar</button>
   </div>
-  <div class="ver-tag" id="ver-tag">v0.5.0</div>
+  <div class="ver-tag" id="ver-tag">v0.6.0</div>
 </div>
 
 <!-- SETUP -->
@@ -421,7 +421,7 @@ body.light #mesa { box-shadow: inset 0 0 0 5px color-mix(in srgb, var(--bg) 70%,
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
-const VERSION = 'v0.5.0';
+const VERSION = 'v0.6.0';
 
 /* =====================================================================
    ESTADO
@@ -851,58 +851,60 @@ function chainLayout(u, W) {
   if (o < 0) o = 0;
   const isD = i => chain[i].a === chain[i].b;
   const out = [];
-  const MARGIN = u + 2;
 
   // Coloca la ficha i entrando por el punto P en la direccion d.
   // P es el centro del canto por el que entra. Devuelve el punto de salida.
-  function place(i, P, d) {
+  // rev = false: la cadena se recorre hacia delante y la ficha se entra por su
+  // mitad 'a'. rev = true: rama izquierda, se entra por la mitad 'b'.
+  function place(i, P, d, rev) {
     const dbl = isD(i);
     const L = dbl ? u : 2 * u;      // largo en la direccion de avance
     const A = dbl ? 2 * u : u;      // ancho perpendicular
-    let x, y, w, ht, cls, flip;
+    const adelante = (d.x > 0 || d.y > 0);
+    const flip = rev ? adelante : !adelante;
+    let x, y, w, ht, cls;
     if (d.x !== 0) {
       w = L; ht = A;
       x = d.x > 0 ? P.x : P.x - L;
       y = P.y - A / 2;
       cls = dbl ? 'v' : 'h';
-      flip = d.x < 0;
     } else {
       w = A; ht = L;
       x = P.x - A / 2;
       y = d.y > 0 ? P.y : P.y - L;
       cls = dbl ? 'h' : 'v';
-      flip = d.y < 0;
     }
     out.push({ t: chain[i], x: x, y: y, w: w, h: ht, cls: cls, flip: flip });
     return { x: P.x + d.x * (L + gap), y: P.y + d.y * (L + gap) };
   }
 
   // Recorre una rama. vy = +1 baja al girar, -1 sube.
-  function branch(from, to, step, hd0, P0, vy) {
+  function branch(from, to, step, hd0, P0, vy, rev) {
     let hd = hd0, P = P0;
     for (let i = from; i !== to; i += step) {
       const L = isD(i) ? u : 2 * u;
-      const fits = hd === 1 ? (P.x + L <= W - MARGIN) : (P.x - L >= MARGIN);
+      const M = (isD(i) ? u : u / 2) + 2;   // hueco que necesita el codo
+      const fits = hd === 1 ? (P.x + L <= W - M) : (P.x - L >= M);
       if (!fits) {
-        // codo: ficha perpendicular pegada al final de la fila
+        // holgura u (no u/2): un doble sobresale media ficha a cada lado
         const cx = P.x - hd * (gap + u / 2);
-        const entry = { x: cx, y: P.y + vy * (u / 2 + gap) };
-        const Pv = place(i, entry, { x: 0, y: vy });
+        const entry = { x: cx, y: P.y + vy * (u + gap) };
+        const Pv = place(i, entry, { x: 0, y: vy }, rev);
         hd = -hd;
-        P = { x: Pv.x - hd * (u / 2), y: Pv.y + vy * (u / 2) };
+        P = { x: Pv.x - hd * (u / 2), y: Pv.y + vy * u };
         continue;
       }
-      P = place(i, P, { x: hd, y: 0 });
+      P = place(i, P, { x: hd, y: 0 }, rev);
     }
   }
 
   // --- ficha de salida, anclada en el centro ---
   const L0 = isD(o) ? u : 2 * u;
   const entry0 = { x: W / 2 - L0 / 2, y: 0 };
-  const Pright = place(o, entry0, { x: 1, y: 0 });
+  const Pright = place(o, entry0, { x: 1, y: 0 }, false);
 
-  branch(o + 1, n, 1, 1, Pright, 1);
-  branch(o - 1, -1, -1, -1, { x: entry0.x, y: 0 }, -1);
+  branch(o + 1, n, 1, 1, Pright, 1, false);
+  branch(o - 1, -1, -1, -1, { x: entry0.x, y: 0 }, -1, true);
   return out;
 }
 
