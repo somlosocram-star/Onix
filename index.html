@@ -209,7 +209,7 @@ body.light .card .c-desc { color: #56554d; }
 body.light .card.small .c-roman { color: var(--text); }
 
 /* ---------- Fichas de dominó ---------- */
-.tile { display: flex; background: var(--tile-face); border: 1px solid var(--tile-edge); border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.7); flex-shrink: 0; position: relative; overflow: hidden; }
+.tile { display: flex; background: var(--tile-face); border: 1px solid var(--tile-edge); border-radius: 5px; box-shadow: 0 1px 2px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.55); flex-shrink: 0; position: relative; overflow: hidden; }
 .tile.v { flex-direction: column; width: var(--tw); height: calc(var(--tw) * 2); }
 .tile.h { flex-direction: row; width: calc(var(--tw) * 2); height: var(--tw); }
 .tile .half { flex: 1 1 0; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); padding: 12%; gap: 4%; }
@@ -338,7 +338,7 @@ body.light #mesa { box-shadow: inset 0 0 0 5px color-mix(in srgb, var(--bg) 70%,
   <div class="btn-row">
     <button class="btn" id="btn-play">Jugar</button>
   </div>
-  <div class="ver-tag" id="ver-tag">v0.8.0</div>
+  <div class="ver-tag" id="ver-tag">v0.9.0</div>
 </div>
 
 <!-- SETUP -->
@@ -421,7 +421,7 @@ body.light #mesa { box-shadow: inset 0 0 0 5px color-mix(in srgb, var(--bg) 70%,
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
-const VERSION = 'v0.8.0';
+const VERSION = 'v0.9.0';
 
 /* =====================================================================
    ESTADO
@@ -857,7 +857,7 @@ function chainLayout(u, W) {
 
   // rev = false: la cadena se recorre hacia delante y se entra por la mitad
   // 'a'. rev = true: rama izquierda, se entra por la mitad 'b'.
-  function place(i, P, d, rev, seg) {
+  function place(i, P, d, rev) {
     const dbl = isD(i);
     const L = dbl ? u : 2 * u;      // largo en la direccion de avance
     const A = dbl ? 2 * u : u;      // ancho perpendicular
@@ -875,63 +875,46 @@ function chainLayout(u, W) {
       y = d.y > 0 ? P.y : P.y - L;
       cls = dbl ? 'h' : 'v';
     }
-    out.push({ t: chain[i], x: x, y: y, w: w, h: ht, cls: cls, flip: flip, seg: seg });
+    out.push({ t: chain[i], x: x, y: y, w: w, h: ht, cls: cls, flip: flip });
     return { x: P.x + d.x * (L + gap), y: P.y + d.y * (L + gap) };
   }
 
-  // Separa filas solo cuando de verdad chocan (pasa con los dobles, que
-  // sobresalen media ficha). Asi el codo queda pegado en el caso normal.
-  function resolve(first, vy) {
-    let maxSeg = 0;
-    for (let k = first; k < out.length; k++) if (out[k].seg > maxSeg) maxSeg = out[k].seg;
-    for (let s = 1; s <= maxSeg; s++) {
-      let delta = 0;
-      for (let k = first; k < out.length; k++) {
-        if (out[k].seg < s) continue;
-        const Q = out[k];
-        for (let j = 0; j < out.length; j++) {
-          if (j >= first && out[j].seg >= s) continue;
-          const R = out[j];
-          if (Q.x >= R.x + R.w - 0.5 || R.x >= Q.x + Q.w - 0.5) continue;
-          const d = vy > 0 ? (R.y + R.h + gap) - Q.y : (Q.y + Q.h + gap) - R.y;
-          if (d > delta) delta = d;
-        }
-      }
-      if (delta > 0) {
-        for (let k = first; k < out.length; k++) if (out[k].seg >= s) out[k].y += vy * delta;
-      }
-    }
-  }
-
   // Recorre una rama. vy = +1 gira hacia abajo, -1 hacia arriba.
+  // Paso vertical fijo entre filas: 2u + hueco. Con esa distancia nunca
+  // chocan ni los dobles (que sobresalen media ficha) y las filas quedan
+  // a la misma altura unas de otras.
+  const pitch = 2 * u + gap;
+
   function branch(from, to, step, hd0, P0, vy, rev) {
-    const first = out.length;
-    let hd = hd0, P = P0, seg = 0;
+    let hd = hd0, P = P0;
     for (let i = from; i !== to; i += step) {
-      const L = isD(i) ? u : 2 * u;   // largo
-      const A = isD(i) ? 2 * u : u;   // ancho (lo que ocupa de canto al girar)
-      const fits = hd === 1 ? (P.x + L <= W) : (P.x - L >= 0);
+      const dbl = isD(i);
+      const L = dbl ? u : 2 * u;   // largo
+      const A = dbl ? 2 * u : u;   // ancho de canto
+      // se reserva sitio para el codo que vendra (una ficha de canto, 2u en
+      // el peor caso: un doble), asi nunca hay que recortarlo contra el borde
+      const RES = 2 * u;
+      const fits = hd === 1 ? (P.x + L + RES <= W) : (P.x - L - RES >= 0);
       if (!fits) {
-        // Codo en L: la ficha se pone de canto justo al final de la fila,
-        // alineada con su borde, y la cadena sigue desde su otro extremo.
-        seg++;
+        // Codo en L: la ficha se pone de canto al final de la fila. Si es un
+        // doble (corto) se centra entre las dos filas; si no, se alinea con
+        // el borde de la fila que deja.
         let cx = P.x + hd * (A / 2);
         cx = Math.max(A / 2, Math.min(W - A / 2, cx));
-        const entry = { x: cx, y: P.y - vy * (u / 2) };
-        place(i, entry, { x: 0, y: vy }, rev, seg);
+        const ey = dbl ? P.y + vy * (u / 2 + gap / 2) : P.y - vy * (u / 2);
+        place(i, { x: cx, y: ey }, { x: 0, y: vy }, rev);
         hd = -hd;
-        P = { x: cx + hd * (A / 2 + gap), y: entry.y + vy * (L - u / 2) };
+        P = { x: cx + hd * (A / 2 + gap), y: P.y + vy * pitch };
         continue;
       }
-      P = place(i, P, { x: hd, y: 0 }, rev, seg);
+      P = place(i, P, { x: hd, y: 0 }, rev);
     }
-    resolve(first, vy);
   }
 
   // --- ficha de salida, anclada en el centro ---
   const L0 = isD(o) ? u : 2 * u;
   const entry0 = { x: W / 2 - L0 / 2, y: 0 };
-  const Pright = place(o, entry0, { x: 1, y: 0 }, false, 0);
+  const Pright = place(o, entry0, { x: 1, y: 0 }, false);
 
   branch(o + 1, n, 1, 1, Pright, 1, false);
   branch(o - 1, -1, -1, -1, { x: entry0.x, y: 0 }, -1, true);
