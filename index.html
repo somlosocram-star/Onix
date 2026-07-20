@@ -28,7 +28,7 @@
   --text: #f4f4f2; --muted: #76767c; --accent: #f4f4f2; --on-accent: #0b0b0c;
   --oro: #d6a85c; --fieltro: #16211c;
   --grain: .45; --vineta: rgba(0,0,0,.5);
-  --uu: 24px;
+  --uu: 21px;
 }
 body.light, html.pre-light body {
   --bg: #f3f2ee; --panel: #e7e6df; --panel-2: #eeede7; --line: #d2d0c6;
@@ -265,7 +265,7 @@ body.light .card .name { color: var(--text); }
   <div class="title"><em>Ó</em><span>nix</span></div>
   <div class="subtitle">dominó</div>
   <div class="btn-row"><button class="btn" id="btn-jugar">Jugar</button></div>
-  <div class="ver-tag" id="ver-tag">v0.20.0</div>
+  <div class="ver-tag" id="ver-tag">v0.21.0</div>
 </div>
 
 <div id="screen-setup" class="screen">
@@ -319,7 +319,7 @@ body.light .card .name { color: var(--text); }
 </div>
 <script>
 "use strict";
-const VERSION = 'v0.20.0';
+const VERSION = 'v0.21.0';
 const $ = id => document.getElementById(id);
 const PUNTOS = { 0:[], 1:[5], 2:[1,9], 3:[1,5,9], 4:[1,3,7,9], 5:[1,3,5,7,9], 6:[1,2,3,7,8,9] };
 const DIR = { 0:[1,0], 90:[0,1], 180:[-1,0], 270:[0,-1] };
@@ -337,6 +337,7 @@ let bloqueo = false;
 let totales = [0, 0];
 let pases = 0;
 let robos = 0;
+let motivoCierre = '';
 const MAX_ROBOS = 2;
 let arrastre = null;
 let limite = 100;
@@ -563,6 +564,11 @@ function anotarJugada(f, con) {
 
 // Poder jugar no es que te case un número: es que EXISTA un hueco donde
 // quepa la ficha. Si no, el juego te daba por servido y te dejaba encerrado.
+// Te casa algun numero, aunque luego no haya sitio donde ponerla
+function casaNumero(mano) {
+  const v = valoresAbiertos();
+  return mano.some(t => v.has(t.a) || v.has(t.b));
+}
 function puedeJugar(mano) {
   const v = valoresAbiertos();
   if (!mano.some(t => v.has(t.a) || v.has(t.b))) return false;   // atajo barato
@@ -599,7 +605,7 @@ function nuevaRonda() {
   leerU();
   fichas.forEach(f => f.el.remove());
   dorsosIA.forEach(d => d.remove());
-  fichas = []; cadena = []; dorsosIA = []; arrastre = null; bloqueo = false; pases = 0; robos = 0;
+  fichas = []; cadena = []; dorsosIA = []; arrastre = null; bloqueo = false; pases = 0; robos = 0; motivoCierre = '';
   cerrarCarteles();
 
   const w = mesa.clientWidth, h = mesa.clientHeight;
@@ -840,7 +846,25 @@ function buscarEn(mano) {
         if (cercaOtra === Infinity) cercaOtra = U * 6;
         const w = mesa.clientWidth, hh = mesa.clientHeight;
         const borde = Math.min(p.x, p.y, w - p.x, hh - p.y);
-        const nota = Math.min(cercaOtra, U*5) + Math.min(borde, U*3) * .8 + (t.a + t.b) * .35;
+        // ¿el extremo que queda libre podrá seguir creciendo? Un extremo
+        // ahogado es lo que acaba cerrando la ronda sin que nadie lo decida
+        const nueva = { a: t.a, b: t.b, x: p.x, y: p.y, rot: o.rot };
+        const mm = mitades(nueva);
+        const libreMitad = mm[1 - o.mia];
+        let aire = 0;
+        for (const d2 of EJES) {
+          const rr = rotDe(d2);
+          if (rr === null) continue;
+          if (cabe(libreMitad.x + d2[0]*U*1.5, libreMitad.y + d2[1]*U*1.5, rr, null)) aire++;
+        }
+        const dCentro = Math.hypot(p.x - w/2, p.y - hh/2);
+        // sitio despejado pero SIN irse a los bordes: gastar el borde es lo
+        // que deja la mesa sin hueco y cierra la ronda antes de tiempo
+        const nota = aire * 14
+                   + Math.min(borde, U*3) * 1.1
+                   + Math.min(cercaOtra, U*2) * .4
+                   - dCentro * .10
+                   + (t.a + t.b) * .3;
         if (nota > mejorNota) { mejorNota = nota; mejor = { idx: idx, t: t, x: p.x, y: p.y, rot: o.rot }; }
       }
     }
@@ -857,6 +881,9 @@ function rotDe(d) {
 // Pasa el turno sin jugar. Dos pases seguidos cierran la ronda.
 function pasar(quien) {
   pases++;
+  const manoQ = quien === 0 ? miMano() : manoIA;
+  if (casaNumero(manoQ)) motivoCierre = 'sitio';
+  else if (motivoCierre !== 'sitio') motivoCierre = 'numeros';
   if (pases >= 2) { cerrarPorPuntos(); return; }
   turno = quien === 0 ? 1 : 0;
   bloqueo = false;
@@ -871,6 +898,7 @@ function comprobarFin() {
   cerrarPorPuntos();
 }
 function cerrarPorPuntos() {
+  if (!motivoCierre) motivoCierre = (casaNumero(miMano()) || casaNumero(manoIA)) ? 'sitio' : 'numeros';
   bloqueo = true;
   const mis = miMano().reduce((s,t) => s + t.a + t.b, 0);
   const sus = manoIA.reduce((s,t) => s + t.a + t.b, 0);
@@ -1021,7 +1049,9 @@ function finRonda(quien, como) {
     (campeon === 0 ? sGana : sPierde)();
   } else {
     $('r-t').innerHTML = quien === 0 ? '<em>Ronda tuya</em>' : '<em>Ronda de Iris</em>';
-    $('r-s').textContent = (como === 'dominó' ? 'dominó' : 'cierre') + ' · ronda ' + ronda + ' · a ' + limite;
+    const porQue = como === 'dominó' ? 'dominó'
+      : (motivoCierre === 'sitio' ? 'cierre · sin sitio en la mesa' : 'cierre · nadie casa');
+    $('r-s').textContent = porQue + ' · ronda ' + ronda + ' · a ' + limite;
     $('r-tabla').innerHTML = tablaHTML(delta);
     $('ov-ronda').classList.add('visible');
     (quien === 0 ? sGana : sPierde)();
