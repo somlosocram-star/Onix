@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0b0b0c">
-
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
@@ -13,26 +12,11 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Ónix">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="description" content="Ónix — dominó por rondas. 2 a 4 jugadores.">
-
+<meta name="description" content="Ónix — dominó sobre mesa libre. Coloca las fichas donde quieras.">
 <title>Ónix · Dominó</title>
-
 <script>
   (function () {
-    try {
-      if (localStorage.getItem('onix_theme') === 'light') {
-        document.documentElement.classList.add('pre-light');
-      }
-    } catch (e) {}
-    window.addEventListener('DOMContentLoaded', function () {
-      setTimeout(function () {
-        var s = document.getElementById('app-splash');
-        if (s && s.style.display !== 'none') {
-          s.style.transition = 'opacity 0.6s'; s.style.opacity = '0';
-          setTimeout(function () { s.style.display = 'none'; }, 650);
-        }
-      }, 5000);
-    });
+    try { if (localStorage.getItem('onix_theme') === 'light') document.documentElement.classList.add('pre-light'); } catch (e) {}
   })();
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -40,1234 +24,1070 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,700;1,500;1,700&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg: #0b0b0c;
-  --panel: #141416;
-  --panel-2: #1b1b1f;
-  --line: #2c2c30;
-  --text: #f4f4f2;
-  --muted: #76767c;
-  --accent: #f4f4f2;
-  --grain-opacity: 0.45;
-  --vignette: rgba(0,0,0,0.5);
-  --on-accent: #0b0b0c;
-  --tile-face: #efeee9;
-  --tile-pip: #111112;
-  --tile-edge: #cfcdc4;
+  --bg: #0b0b0c; --panel: #141416; --panel-2: #1b1b1f; --line: #2c2c30;
+  --text: #f4f4f2; --muted: #76767c; --accent: #f4f4f2; --on-accent: #0b0b0c;
+  --oro: #d6a85c; --fieltro: #16211c;
+  --grain: .45; --vineta: rgba(0,0,0,.5);
+  --uu: 24px;
 }
 body.light, html.pre-light body {
-  --bg: #f3f2ee;
-  --panel: #e7e6df;
-  --panel-2: #eeede7;
-  --line: #d2d0c6;
-  --text: #17171a;
-  --muted: #8c8b81;
-  --accent: #17171a;
-  --grain-opacity: 0.16;
-  --vignette: rgba(60,58,50,0.10);
-  --on-accent: #f3f2ee;
-  --tile-face: #fbfaf6;
-  --tile-pip: #17171a;
-  --tile-edge: #c6c4ba;
+  --bg: #f3f2ee; --panel: #e7e6df; --panel-2: #eeede7; --line: #d2d0c6;
+  --text: #17171a; --muted: #8c8b81; --accent: #17171a; --on-accent: #f3f2ee;
+  --oro: #a87c34; --fieltro: #2c5145;
+  --grain: .16; --vineta: rgba(60,58,50,.10);
 }
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-html, body { height: 100%; overflow: hidden; }
+html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 body {
-  background: var(--bg);
-  color: var(--text);
+  background: var(--bg); color: var(--text);
   font-family: 'Cormorant Garamond', serif;
-  background-image:
-    radial-gradient(ellipse 80% 50% at 50% 0%, rgba(255,255,255,0.05) 0%, transparent 62%),
-    radial-gradient(ellipse 60% 80% at 50% 100%, rgba(255,255,255,0.03) 0%, transparent 62%);
-  background-attachment: fixed;
-  position: relative;
-  overscroll-behavior: none;
   -webkit-user-select: none; user-select: none;
-  transition: background-color 0.4s ease, color 0.4s ease;
-}
-body.light {
-  background-image:
-    radial-gradient(ellipse 80% 50% at 50% 0%, rgba(0,0,0,0.04) 0%, transparent 62%),
-    radial-gradient(ellipse 60% 80% at 50% 100%, rgba(0,0,0,0.03) 0%, transparent 62%);
+  transition: background-color .4s ease, color .4s ease;
 }
 body::before {
   content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 1;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.06 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
-  opacity: var(--grain-opacity); mix-blend-mode: overlay;
+  opacity: var(--grain); mix-blend-mode: overlay;
 }
-body::after {
-  content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 1;
-  background: radial-gradient(ellipse at center, transparent 52%, var(--vignette) 100%);
-}
-.mono { font-family: 'IBM Plex Mono', monospace; font-feature-settings: "tnum"; }
+.mono { font-family: 'IBM Plex Mono', monospace; }
 
-/* ---------- Controles flotantes ---------- */
+/* ---------- controles flotantes ---------- */
 #theme-toggle {
   position: fixed; top: max(1rem, env(safe-area-inset-top)); right: 1.2rem; z-index: 500;
   width: 56px; height: 30px; border-radius: 15px; border: 1px solid var(--line);
   background: var(--panel); cursor: pointer; outline: none; padding: 0;
-  display: flex; align-items: center; transition: background .3s, border-color .3s;
-  box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
+  display: flex; align-items: center; box-shadow: inset 0 1px 3px rgba(0,0,0,.3);
 }
 #theme-toggle .knob {
   position: absolute; width: 24px; height: 24px; border-radius: 50%; left: 2px;
-  background: radial-gradient(circle at 35% 30%, #ffffff, #cfcfcf 70%, #9a9a9a);
-  box-shadow: 0 1px 4px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.5);
+  background: radial-gradient(circle at 35% 30%, #fff, #cfcfcf 70%, #9a9a9a);
+  box-shadow: 0 1px 4px rgba(0,0,0,.4), inset 0 1px 1px rgba(255,255,255,.5);
   transition: transform .3s cubic-bezier(.2,.9,.3,1);
   display: flex; align-items: center; justify-content: center; font-size: .7rem; line-height: 1;
 }
 #theme-toggle .knob::after { content: '☾'; color: #1a1a1a; }
 body.light #theme-toggle .knob { transform: translateX(26px); background: radial-gradient(circle at 35% 30%, #3a3a3a, #1a1a1a 70%, #000); }
 body.light #theme-toggle .knob::after { content: '☀'; color: #f3f2ee; }
-body.light #theme-toggle { border-color: var(--accent); }
-
 #sound-toggle {
   position: fixed; top: max(1rem, env(safe-area-inset-top)); right: 5.2rem; z-index: 500;
   width: 38px; height: 30px; border-radius: 8px; border: 1px solid var(--line);
   background: var(--panel); cursor: pointer; outline: none; padding: 0;
-  display: flex; align-items: center; justify-content: center; font-size: .95rem;
-  color: var(--text); transition: background .3s, border-color .3s, color .3s;
+  display: flex; align-items: center; justify-content: center; font-size: .95rem; color: var(--text);
 }
 #sound-toggle.muted { color: var(--muted); }
-#sound-toggle .ic-on { display: inline; } #sound-toggle .ic-off { display: none; }
-#sound-toggle.muted .ic-on { display: none; } #sound-toggle.muted .ic-off { display: inline; }
-
+#sound-toggle .on { display: inline; } #sound-toggle .off { display: none; }
+#sound-toggle.muted .on { display: none; } #sound-toggle.muted .off { display: inline; }
 #help-btn {
   position: fixed; top: max(1rem, env(safe-area-inset-top)); left: 1.2rem; z-index: 500;
-  width: 30px; height: 30px; border-radius: 50%; border: none; outline: none; cursor: pointer;
+  width: 30px; height: 30px; border-radius: 50%; border: none; cursor: pointer;
   background: var(--accent); color: var(--on-accent);
   font-family: 'Cormorant Garamond', serif; font-style: italic; font-weight: 700;
-  font-size: 1.1rem; line-height: 1; display: flex; align-items: center; justify-content: center;
-  transition: transform .1s, background .3s, color .3s; box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  font-size: 1.1rem; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,.3);
 }
-#help-btn:active { transform: scale(0.9); }
-body.in-game #theme-toggle, body.in-game #sound-toggle, body.in-game #help-btn { opacity: .25; transition: opacity .3s; }
+#help-btn:active { transform: scale(.9); }
+body.in-game #theme-toggle, body.in-game #sound-toggle, body.in-game #help-btn { opacity: .22; }
 body.in-game #theme-toggle:active, body.in-game #sound-toggle:active, body.in-game #help-btn:active { opacity: .9; }
 
-/* ---------- Tutorial ---------- */
-#tutorial-overlay {
-  position: fixed; inset: 0; z-index: 600; background: color-mix(in srgb, var(--bg) 97%, transparent);
-  display: none; flex-direction: column; padding: 2rem 1.4rem 1.4rem; overflow-y: auto;
-}
-#tutorial-overlay.visible { display: flex; animation: screenIn .4s ease both; }
-#tutorial-overlay h2 { font-style: italic; font-size: clamp(2rem,7vw,2.8rem); font-weight: 500; text-align: center; margin-bottom: .2rem; }
-#tutorial-overlay .tut-sub { font-family: 'IBM Plex Mono', monospace; font-size: .6rem; letter-spacing: .4em; color: var(--muted); text-align: center; text-transform: uppercase; margin-bottom: 1.8rem; }
-.tut-step { display: flex; gap: .9rem; align-items: flex-start; margin: 0 auto 1.2rem; max-width: 480px; width: 100%; }
-.tut-num { flex-shrink: 0; width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--accent); color: var(--accent); font-family: 'IBM Plex Mono', monospace; font-size: .8rem; font-weight: 700; display: flex; align-items: center; justify-content: center; }
-.tut-text { font-size: 1.15rem; line-height: 1.45; text-align: left; }
-.tut-text b { font-weight: 700; border-bottom: 1px solid var(--muted); }
-.tut-close { align-self: center; margin: .8rem 0 1rem; }
-
-/* ---------- Splash ---------- */
+/* ---------- splash ---------- */
 #app-splash { position: fixed; inset: 0; z-index: 1000; background: var(--bg); display: flex; align-items: center; justify-content: center; transition: opacity .6s ease; }
 html.pre-light #app-splash { background: #f3f2ee; }
 #app-splash.hiding { opacity: 0; pointer-events: none; }
-.splash-seal { width: 150px; height: 150px; border-radius: 50%; border: 1px solid var(--accent); display: flex; align-items: center; justify-content: center; position: relative; box-shadow: inset 0 0 40px rgba(255,255,255,.08), 0 0 80px rgba(255,255,255,.06); animation: sealMint 1.1s cubic-bezier(.2,.9,.3,1) both; overflow: hidden; }
+.splash-seal {
+  width: 150px; height: 150px; border-radius: 50%; border: 1px solid var(--accent);
+  display: flex; align-items: center; justify-content: center; position: relative;
+  box-shadow: inset 0 0 40px rgba(255,255,255,.08), 0 0 80px rgba(255,255,255,.06);
+  animation: sealMint 1.1s cubic-bezier(.2,.9,.3,1) both;
+}
 body.light .splash-seal { box-shadow: inset 0 0 40px rgba(0,0,0,.06), 0 0 80px rgba(0,0,0,.05); }
 .splash-seal::after { content: ''; position: absolute; border-radius: 50%; border: 1px dotted var(--muted); inset: -14px; animation: ringSpin 9s linear infinite; opacity: .6; }
 .splash-seal svg { width: 78px; height: 78px; animation: glyphDrop .7s cubic-bezier(.3,1.4,.5,1) both; animation-delay: .45s; }
-@keyframes sealMint { 0%{opacity:0; transform: scale(.3) rotateY(180deg);} 60%{opacity:1; transform: scale(1.08);} 100%{opacity:1; transform: scale(1);} }
-@keyframes glyphDrop { 0%{opacity:0; transform: translateY(-34px) scale(1.4);} 70%{opacity:1; transform: translateY(3px) scale(.96);} 100%{opacity:1; transform: translateY(0) scale(1);} }
+@keyframes sealMint { 0%{opacity:0;transform:scale(.3) rotateY(180deg);} 60%{opacity:1;transform:scale(1.08);} 100%{opacity:1;transform:scale(1);} }
+@keyframes glyphDrop { 0%{opacity:0;transform:translateY(-34px) scale(1.4);} 70%{opacity:1;transform:translateY(3px) scale(.96);} 100%{opacity:1;transform:none;} }
 @keyframes ringSpin { to { transform: rotate(360deg); } }
 
-/* ---------- Pantallas ---------- */
-.screen { display: none; position: fixed; inset: 0; flex-direction: column; align-items: center; justify-content: center; padding: 1.5rem; text-align: center; z-index: 5; overflow-y: auto; }
+/* ---------- pantallas ---------- */
+.screen { display: none; position: fixed; inset: 0; flex-direction: column; align-items: center; justify-content: center; padding: 1.5rem; text-align: center; z-index: 5; }
 .screen.visible { display: flex; animation: screenIn .45s cubic-bezier(.2,.8,.3,1) both; }
-@keyframes screenIn { 0%{opacity:0; transform: translateY(12px);} 100%{opacity:1; transform: translateY(0);} }
-
-.seal { width: 64px; height: 64px; border-radius: 50%; border: 1px solid var(--accent); display: flex; align-items: center; justify-content: center; margin-bottom: 1.4rem; position: relative; box-shadow: inset 0 0 20px rgba(255,255,255,.06); flex-shrink: 0; }
+@keyframes screenIn { 0%{opacity:0;transform:translateY(12px);} 100%{opacity:1;transform:none;} }
+.seal { width: 64px; height: 64px; border-radius: 50%; border: 1px solid var(--accent); display: flex; align-items: center; justify-content: center; margin-bottom: 1.3rem; position: relative; flex-shrink: 0; box-shadow: inset 0 0 20px rgba(255,255,255,.06); }
 body.light .seal { box-shadow: inset 0 0 20px rgba(0,0,0,.05); }
 .seal::after { content: ''; position: absolute; border-radius: 50%; border: 1px dotted var(--muted); inset: -8px; opacity: .45; }
 .seal svg { width: 38px; height: 38px; }
-
-.title { font-size: clamp(2.4rem, 9vw, 4.2rem); font-weight: 500; font-style: italic; line-height: .92; letter-spacing: -.01em; margin-bottom: .2rem; }
+.title { font-size: clamp(2.4rem,9vw,4.2rem); font-weight: 500; font-style: italic; line-height: .92; margin-bottom: .2rem; }
 .title span { display: block; font-style: normal; font-weight: 700; letter-spacing: -.02em; }
-.subtitle { font-family: 'IBM Plex Mono', monospace; font-size: .62rem; letter-spacing: .5em; color: var(--muted); margin: 1.1rem 0 2rem; text-transform: uppercase; display: flex; align-items: center; gap: .8rem; }
+.subtitle { font-family: 'IBM Plex Mono', monospace; font-size: .62rem; letter-spacing: .5em; color: var(--muted); margin: 1rem 0 1.9rem; text-transform: uppercase; display: flex; align-items: center; gap: .8rem; }
 .subtitle::before, .subtitle::after { content: '·'; font-size: 1.4rem; opacity: .6; }
-
-.btn { background: transparent; border: 1px solid var(--accent); color: var(--accent); padding: 1rem 2rem; font-family: 'IBM Plex Mono', monospace; font-size: .75rem; letter-spacing: .35em; cursor: pointer; outline: none; text-transform: uppercase; transition: all .2s; min-width: 230px; }
-.btn:hover, .btn:active { background: var(--accent); color: var(--on-accent); }
-.btn:disabled { opacity: .3; pointer-events: none; }
-.btn-secondary { border-color: var(--line); color: var(--muted); font-size: .65rem; padding: .7rem 1.5rem; letter-spacing: .3em; min-width: 0; }
-.btn-secondary:hover, .btn-secondary:active { border-color: var(--text); color: var(--text); background: transparent; }
+.btn { background: transparent; border: 1px solid var(--accent); color: var(--accent); padding: 1rem 2rem; font-family: 'IBM Plex Mono', monospace; font-size: .75rem; letter-spacing: .35em; cursor: pointer; text-transform: uppercase; transition: all .2s; min-width: 230px; }
+.btn:active { background: var(--accent); color: var(--on-accent); }
+.btn-sec { border-color: var(--line); color: var(--muted); font-size: .62rem; padding: .7rem 1.4rem; letter-spacing: .3em; min-width: 0; }
+.btn-sec:active { border-color: var(--text); color: var(--text); background: transparent; }
 .btn-row { display: flex; flex-direction: column; gap: .8rem; align-items: center; }
-.btn-back-row { margin-top: 1.4rem; }
-.ver-tag { position: absolute; bottom: max(.9rem, env(safe-area-inset-bottom)); left: 0; right: 0; text-align: center; font-family: 'IBM Plex Mono', monospace; font-size: .5rem; letter-spacing: .3em; color: var(--muted); opacity: .55; text-transform: uppercase; }
 .section-label { font-family: 'IBM Plex Mono', monospace; font-size: .58rem; letter-spacing: .3em; color: var(--muted); text-transform: uppercase; margin-bottom: .7rem; }
+.cards { display: flex; gap: .8rem; justify-content: center; margin-bottom: 1.6rem; }
+.card { width: 82px; background: linear-gradient(180deg,#2a2a30,#1f1f24); border: 1px solid #3a3a41; border-radius: 8px; cursor: pointer; display: flex; flex-direction: column; align-items: center; padding: .8rem .5rem; transition: all .2s; }
+body.light .card { background: linear-gradient(180deg,var(--panel-2),var(--panel)); border-color: var(--line); }
+.card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset, 0 0 26px rgba(255,255,255,.07); }
+.card .roman { font-style: italic; font-size: 1.7rem; font-weight: 500; line-height: 1; color: #fff; }
+body.light .card .roman { color: var(--text); }
+.card .name { font-family: 'IBM Plex Mono', monospace; font-size: .58rem; letter-spacing: .22em; text-transform: uppercase; font-weight: 700; color: #fff; margin-top: .25rem; }
+body.light .card .name { color: var(--text); }
+.ver-tag { position: absolute; bottom: max(.9rem, env(safe-area-inset-bottom)); left: 0; right: 0; text-align: center; font-family: 'IBM Plex Mono', monospace; font-size: .5rem; letter-spacing: .3em; color: var(--muted); opacity: .55; text-transform: uppercase; }
 
-.cards { display: flex; gap: .8rem; flex-wrap: wrap; justify-content: center; margin-bottom: 1.6rem; }
-.card { width: 132px; background: linear-gradient(180deg, #2a2a30 0%, #1f1f24 100%); border: 1px solid #3a3a41; border-radius: 8px; cursor: pointer; outline: none; position: relative; display: flex; flex-direction: column; align-items: center; padding: 1rem .6rem; transition: all .2s ease; overflow: hidden; }
-body.light .card { background: linear-gradient(180deg, var(--panel-2) 0%, var(--panel) 100%); border-color: var(--line); }
-.card::before { content: ''; position: absolute; top: 0; left: 25%; right: 25%; height: 1px; background: linear-gradient(90deg, transparent, var(--accent), transparent); opacity: .4; }
-.card:active, .card.selected { border-color: var(--accent); background: linear-gradient(180deg, #33333a 0%, #28282e 100%); box-shadow: 0 0 0 1px var(--accent) inset, 0 0 26px rgba(255,255,255,.07); }
-body.light .card.selected { background: linear-gradient(180deg, #fbfbf8 0%, #f3f2ec 100%); box-shadow: 0 0 0 1px var(--accent) inset, 0 0 26px rgba(0,0,0,.05); }
-.card .c-name { font-family: 'IBM Plex Mono', monospace; font-size: .62rem; letter-spacing: .25em; text-transform: uppercase; font-weight: 700; color: #ffffff; }
-body.light .card .c-name { color: var(--text); }
-.card .c-desc { font-size: 1rem; color: #f0f0f2; line-height: 1.15; margin-top: .25rem; }
-body.light .card .c-desc { color: #56554d; }
-.card.small { width: 82px; padding: .8rem .5rem; }
-.card.small .c-roman { font-style: italic; font-size: 1.9rem; font-weight: 500; line-height: 1; color: #ffffff; }
-body.light .card.small .c-roman { color: var(--text); }
+/* ---------- tutorial ---------- */
+#tutorial { position: fixed; inset: 0; z-index: 600; background: color-mix(in srgb, var(--bg) 97%, transparent); display: none; flex-direction: column; padding: 2rem 1.4rem 1.4rem; overflow-y: auto; }
+#tutorial.visible { display: flex; animation: screenIn .4s ease both; }
+#tutorial h2 { font-style: italic; font-size: clamp(2rem,7vw,2.8rem); font-weight: 500; text-align: center; }
+#tutorial .sub { font-family: 'IBM Plex Mono', monospace; font-size: .6rem; letter-spacing: .4em; color: var(--muted); text-align: center; text-transform: uppercase; margin: .2rem 0 1.6rem; }
+.paso { display: flex; gap: .9rem; align-items: flex-start; margin: 0 auto 1.1rem; max-width: 480px; width: 100%; }
+.paso .n { flex-shrink: 0; width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--accent); color: var(--accent); font-family: 'IBM Plex Mono', monospace; font-size: .78rem; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.paso .t { font-size: 1.12rem; line-height: 1.45; text-align: left; }
+.paso .t b { font-weight: 700; border-bottom: 1px solid var(--muted); }
 
-/* ---------- Fichas de dominó ---------- */
-.tile {
-  display: flex; flex-shrink: 0; position: relative; overflow: hidden;
-  background: linear-gradient(158deg, #fdfcf8 0%, #f4f2ea 48%, #e8e5d9 100%);
-  border: 1px solid #c4c1b4; border-radius: 13%;
-  box-shadow: 0 1px 2px rgba(0,0,0,.30), 0 3px 8px rgba(0,0,0,.16),
-              inset 0 1px 0 rgba(255,255,255,.95), inset 0 -1px 0 rgba(0,0,0,.07);
+/* ---------- juego ---------- */
+#screen-game { padding: 0; justify-content: flex-start; }
+.cab {
+  flex: 0 0 auto; width: 100%; display: flex; align-items: center; justify-content: center;
+  gap: 1.2rem; padding: calc(env(safe-area-inset-top) + 2.6rem) .9rem .4rem;
+  font-family: 'IBM Plex Mono', monospace; font-size: .6rem; letter-spacing: .12em; text-transform: uppercase;
 }
-.tile::after {
-  content: ''; position: absolute; inset: 5%; border-radius: 9%;
-  border: 1px solid rgba(0,0,0,.05); pointer-events: none;
-}
-.tile.v { flex-direction: column; width: var(--tw); height: calc(var(--tw) * 2); }
-.tile.h { flex-direction: row; width: calc(var(--tw) * 2); height: var(--tw); }
-.tile .half { flex: 1 1 0; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); padding: 12%; gap: 4%; }
-.tile.v .half:first-child { border-bottom: 1px solid #bfbcae; box-shadow: 0 1px 0 rgba(255,255,255,.9); }
-.tile.h .half:first-child { border-right: 1px solid #bfbcae; box-shadow: 1px 0 0 rgba(255,255,255,.9); }
-.tile .cell { display: flex; align-items: center; justify-content: center; }
-.tile .cell.p::after {
-  content: ''; width: 76%; aspect-ratio: 1; border-radius: 50%;
-  background: radial-gradient(circle at 34% 28%, #55555a 0%, #232327 45%, #101012 100%);
-  box-shadow: inset 0 1px 1.5px rgba(0,0,0,.65), 0 .5px 0 rgba(255,255,255,.7);
-}
-
-/* ---------- Pantalla de juego ---------- */
-#screen-game { padding: 0; display: none; flex-direction: column; justify-content: flex-start; text-align: center; }
-#screen-game.visible { display: flex; }
-.game-head { flex: 0 0 auto; width: 100%; padding: calc(env(safe-area-inset-top) + 3rem) .7rem .3rem; }
-.status-bar { padding: 0 .1rem; }
-.status-bar { display: flex; align-items: stretch; justify-content: center; gap: .4rem; max-width: 500px; margin: 0 auto; }
-.stat-chip { flex: 1 1 0; min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: .4rem .3rem; display: flex; flex-direction: column; align-items: center; gap: .1rem; }
-.stat-chip.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
-.stat-chip .cv { font-family: 'IBM Plex Mono', monospace; font-weight: 700; font-size: .95rem; line-height: 1; }
-.stat-chip .cl { font-family: 'IBM Plex Mono', monospace; font-size: .46rem; letter-spacing: .12em; color: var(--muted); text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-.stat-chip .cn { font-family: 'IBM Plex Mono', monospace; font-size: .52rem; letter-spacing: .16em; text-transform: uppercase; }
-.round-line { margin: .45rem auto .1rem; font-family: 'IBM Plex Mono', monospace; font-size: .55rem; letter-spacing: .3em; text-transform: uppercase; color: var(--muted); }
-.turn-line { margin: .3rem auto .2rem; font-family: 'IBM Plex Mono', monospace; font-size: .62rem; letter-spacing: .26em; text-transform: uppercase; color: var(--muted); min-height: 1.1em; display: flex; align-items: center; justify-content: center; gap: .5rem; }
-.turn-line b { color: var(--text); font-weight: 700; }
-.turn-line .thinking { color: var(--accent); }
-.turn-line .dots::after { content: ''; animation: dots 1.4s steps(4) infinite; }
-@keyframes dots { 0%{content:'';} 25%{content:'.';} 50%{content:'..';} 75%{content:'...';} }
-
-.board-wrap { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; min-height: 0; padding: .2rem .6rem .1rem; }
-
-/* Tope de mesa: la cadena serpentea dentro y nunca se sale */
+.cab .m { display: flex; align-items: baseline; gap: .4rem; color: var(--muted); }
+.cab .m b { color: var(--text); font-size: .8rem; }
+.cab .m.turno b { color: var(--oro); }
 #mesa {
-  position: relative; width: 100%; max-width: 520px; flex: 1 1 auto; min-height: 0;
-  border: 1px solid var(--line); border-radius: 16px;
-  background: color-mix(in srgb, var(--panel) 60%, transparent);
-  box-shadow: inset 0 0 0 5px color-mix(in srgb, var(--bg) 70%, transparent),
-              inset 0 0 0 6px var(--line),
-              inset 0 0 34px rgba(0,0,0,.30);
-  display: flex; align-items: center; justify-content: center;
-  padding: .7rem .8rem; overflow: hidden;
+  flex: 1 1 auto; position: relative; width: calc(100% - 1rem); margin: 0 .5rem .4rem;
+  border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+  touch-action: none; isolation: isolate; background-color: var(--fieltro);
+  background-image:
+    radial-gradient(ellipse 70% 55% at 50% 34%, rgba(255,255,255,.07), transparent 70%),
+    repeating-linear-gradient(58deg, rgba(255,255,255,.022) 0 2px, transparent 2px 4px),
+    repeating-linear-gradient(-58deg, rgba(0,0,0,.05) 0 2px, transparent 2px 4px);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.05), inset 0 2px 10px rgba(0,0,0,.55), inset 0 -30px 60px rgba(0,0,0,.35);
 }
-body.light #mesa { box-shadow: inset 0 0 0 5px color-mix(in srgb, var(--bg) 70%, transparent), inset 0 0 0 6px var(--line), inset 0 0 34px rgba(0,0,0,.07); }
-#mesa::after { content: ''; position: absolute; inset: 10px; border: 1px dotted var(--line); border-radius: 10px; pointer-events: none; opacity: .55; }
-.chain-abs { position: absolute; inset: 10px; z-index: 1; }
-.chain-abs .tile { position: absolute; }
-.chain-abs .tile.flip { transform: rotate(180deg); }
-.slot {
-  position: absolute; border: 1px dashed var(--muted); border-radius: 13%;
-  background: color-mix(in srgb, var(--text) 6%, transparent);
-  opacity: .45; transition: opacity .18s, border-color .18s, background .18s;
-  pointer-events: none;
+#mesa::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 0;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.5 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  opacity: .13; mix-blend-mode: overlay;
 }
-.slot.live { opacity: 1; border-style: solid; border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
-.slot.magnet { animation: magnet .5s ease-in-out infinite; }
-@keyframes magnet { 0%,100%{ box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 40%, transparent); } 50%{ box-shadow: 0 0 0 7px transparent; } }
-#ghost {
-  position: fixed; z-index: 800; pointer-events: none; margin: 0;
-  transition: none; will-change: transform;
-  box-shadow: 0 6px 18px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.95);
+#mesa::after { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 6; background: radial-gradient(ellipse at 50% 40%, transparent 55%, var(--vineta) 100%); }
+.raya { position: absolute; left: 7%; right: 7%; height: 1px; z-index: 1; background: linear-gradient(90deg, transparent, rgba(255,255,255,.14) 20%, rgba(255,255,255,.14) 80%, transparent); pointer-events: none; }
+#hueco { position: absolute; z-index: 1; border-radius: 15%; background: rgba(0,0,0,.30); box-shadow: inset 0 2px 5px rgba(0,0,0,.65), 0 0 0 1px rgba(255,255,255,.06); pointer-events: none; }
+.pie { flex: 0 0 auto; width: 100%; display: flex; align-items: center; justify-content: space-between; gap: .6rem; padding: 0 .9rem max(.6rem, env(safe-area-inset-bottom)); font-family: 'IBM Plex Mono', monospace; font-size: .55rem; letter-spacing: .12em; color: var(--muted); text-transform: uppercase; }
+#aviso b { color: var(--oro); }
+
+/* ---------- fichas ---------- */
+.ficha { position: absolute; left: 0; top: 0; z-index: 2; width: calc(var(--uu)*2); height: var(--uu); will-change: transform; }
+.cuerpo {
+  position: absolute; inset: 0; display: flex; flex-direction: row; border-radius: 14%;
+  background: linear-gradient(180deg,#fffefa 0%,#f7f5ee 38%,#eeebe0 68%,#dedad0 100%);
+  box-shadow: inset 0 1.5px 0 rgba(255,255,255,1), inset 0 -2px 0 rgba(120,112,96,.35),
+    inset 1.5px 0 0 rgba(255,255,255,.65), inset -1.5px 0 0 rgba(120,112,96,.22),
+    inset 0 -6px 10px rgba(150,142,124,.18),
+    0 1px 1px rgba(0,0,0,.35), 0 3px 5px rgba(0,0,0,.32), 0 7px 14px rgba(0,0,0,.28);
+  overflow: hidden; transform-origin: 50% 50%;
+  transition: transform .24s cubic-bezier(.2,.9,.25,1), box-shadow .18s;
 }
-#ghost.snapped { transition: left .13s cubic-bezier(.2,.9,.3,1), top .13s cubic-bezier(.2,.9,.3,1), width .13s, height .13s; }
-#hand .tile.dragging { opacity: .18; }
-#hand .tile { touch-action: none; }
-#mesa .tile { animation: tileDrop .3s ease both; }
-@keyframes tileDrop { 0%{opacity:0;} 100%{opacity:1;} }
-.chain-empty { color: var(--muted); font-family: 'IBM Plex Mono', monospace; font-size: .6rem; letter-spacing: .3em; text-transform: uppercase; }
-.end-marks { display: flex; justify-content: center; gap: 1.4rem; margin-top: .1rem; }
-.end-pick { border: 1px dashed var(--line); background: transparent; color: var(--muted); font-family: 'IBM Plex Mono', monospace; font-size: .58rem; letter-spacing: .22em; text-transform: uppercase; padding: .5rem .9rem; border-radius: 6px; cursor: pointer; transition: all .2s; }
-.end-pick.live { border-style: solid; border-color: var(--accent); color: var(--accent); animation: pulseSoft 1.4s ease-in-out infinite; }
-.end-pick:disabled { opacity: .25; pointer-events: none; }
-@keyframes pulseSoft { 0%,100%{opacity:.6;} 50%{opacity:1;} }
+.cuerpo::after {
+  content: ''; position: absolute; left: -60%; top: -160%; width: 220%; height: 420%;
+  background: linear-gradient(163deg, rgba(255,255,255,.55) 0%, rgba(255,255,255,.16) 22%, rgba(255,255,255,0) 46%, rgba(0,0,0,.05) 78%, rgba(0,0,0,.12) 100%);
+  transform: rotate(calc(var(--r,0) * -1deg)); pointer-events: none; z-index: 4;
+}
+.ficha.viva .cuerpo { box-shadow: inset 0 1.5px 0 rgba(255,255,255,1), inset 0 -2px 0 rgba(120,112,96,.35), inset 1.5px 0 0 rgba(255,255,255,.65), inset -1.5px 0 0 rgba(120,112,96,.22), 0 2px 3px rgba(0,0,0,.4), 0 14px 30px rgba(0,0,0,.6); }
+.ficha.jugada .cuerpo { box-shadow: inset 0 1.5px 0 rgba(255,255,255,.9), inset 0 -2px 0 rgba(120,112,96,.4), inset 0 -5px 9px rgba(120,112,96,.2), 0 0 0 1.4px color-mix(in srgb, var(--oro) 60%, transparent), 0 0 11px 2px color-mix(in srgb, var(--oro) 26%, transparent), 0 1px 2px rgba(0,0,0,.5); }
+.ficha.recien .cuerpo { animation: entra .5s ease-out; }
+@keyframes entra { 0% { box-shadow: 0 0 0 3px rgba(214,168,92,.95), 0 0 26px 8px rgba(214,168,92,.6); } 100% { box-shadow: 0 0 0 1.4px rgba(214,168,92,.6), 0 0 11px 2px rgba(214,168,92,.26); } }
+.ficha.pista .cuerpo { animation: pista 1.6s ease-in-out; }
+@keyframes pista { 0%,100% { box-shadow: 0 1px 1px rgba(0,0,0,.35), 0 3px 5px rgba(0,0,0,.32); } 20%,60% { box-shadow: 0 0 0 2px rgba(214,168,92,.95), 0 0 20px 6px rgba(214,168,92,.55); } }
+.ficha .mitad { flex: 1 1 0; display: grid; padding: 12%; gap: 4%; position: relative; z-index: 2; grid-template-columns: repeat(3,1fr); grid-template-rows: repeat(3,1fr); }
+.ficha .mitad:first-child { border-right: 1px solid rgba(120,112,96,.55); box-shadow: 1px 0 0 rgba(255,255,255,.95); }
+.ficha i { display: flex; align-items: center; justify-content: center; }
+.ficha i.p::after { content: ''; width: 74%; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle at 62% 72%, #3a3a40 0%, #1a1a1e 55%, #0b0b0d 100%); box-shadow: inset 0 2px 2.5px rgba(0,0,0,.95), inset 0 -1px 1px rgba(255,255,255,.22), 0 1px 0 rgba(255,255,255,.85); }
+.dorso { position: absolute; z-index: 2; width: var(--uu); height: calc(var(--uu)*2); border-radius: 14%; background: linear-gradient(165deg,#2f2f34,#202024 55%,#17171a); box-shadow: inset 0 1px 0 rgba(255,255,255,.18), inset 0 -1px 0 rgba(0,0,0,.5), 0 2px 4px rgba(0,0,0,.5), 0 6px 12px rgba(0,0,0,.35); }
+.dorso::after { content: ''; position: absolute; inset: 18%; border-radius: 8%; border: 1px solid rgba(255,255,255,.10); }
+#pozo { position: absolute; z-index: 1; opacity: .92; }
+#pozo .n { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); font-family: 'IBM Plex Mono', monospace; font-size: .62rem; color: rgba(255,255,255,.75); text-shadow: 0 1px 3px #000; }
+#pozo.activo { animation: pulso 1.5s ease-in-out infinite; }
+@keyframes pulso { 0%,100% { filter: brightness(1); } 50% { filter: brightness(1.55); } }
 
-.hand-wrap { flex: 0 0 auto; width: 100%; padding: .2rem 0 .1rem; }
-#hand { --tw: 38px; display: flex; gap: .4rem; padding: .5rem 1rem; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; justify-content: safe center; min-height: calc(38px * 2 + 1rem); align-items: center; }
-#hand::-webkit-scrollbar { display: none; }
-#hand .tile { cursor: pointer; transition: transform .18s, box-shadow .18s, opacity .2s; }
-#hand .tile.dead { opacity: .3; filter: grayscale(1); animation: none !important; }
-#hand .tile.sel { transform: translateY(-10px); box-shadow: 0 0 0 2px var(--accent), 0 6px 14px rgba(0,0,0,.4); }
-#hand .tile.fresh { animation: tileDrop .3s cubic-bezier(.3,1.3,.5,1) both; }
-
-.game-foot { flex: 0 0 auto; width: 100%; padding: .3rem 1rem max(.8rem, env(safe-area-inset-bottom)); display: flex; gap: .6rem; justify-content: center; }
-.game-foot .btn-secondary { min-width: 88px; text-align: center; }
-
-/* ---------- Resumen de ronda / fin ---------- */
-.ov { position: fixed; inset: 0; z-index: 620; background: color-mix(in srgb, var(--bg) 94%, transparent); display: none; flex-direction: column; align-items: center; justify-content: center; padding: 2rem 1.2rem; overflow-y: auto; }
-.ov.visible { display: flex; animation: screenIn .45s ease both; }
+/* ---------- cartel de ronda y de fin ---------- */
+.ov { position: fixed; inset: 0; z-index: 40; display: none; background: color-mix(in srgb, var(--bg) 80%, transparent); backdrop-filter: blur(1.5px); flex-direction: column; align-items: center; justify-content: center; padding: 2rem; }
+.ov.visible { display: flex; animation: screenIn .4s ease both; }
 .ov .seal { animation: sealMint 1s cubic-bezier(.2,.9,.3,1) both; }
-.ov-title { font-style: italic; font-size: clamp(2rem, 8vw, 3.2rem); font-weight: 500; text-align: center; }
-.ov-sub { font-family: 'IBM Plex Mono', monospace; font-size: .62rem; letter-spacing: .32em; color: var(--muted); text-transform: uppercase; margin: .5rem 0 1.6rem; text-align: center; }
-.score-table { width: 100%; max-width: 340px; margin-bottom: 1.8rem; }
-.score-row { display: flex; align-items: center; justify-content: space-between; gap: .6rem; padding: .55rem .2rem; border-bottom: 1px solid var(--line); font-family: 'IBM Plex Mono', monospace; font-size: .72rem; letter-spacing: .1em; }
-.score-row:last-child { border-bottom: none; }
-.score-row .nm { text-transform: uppercase; letter-spacing: .2em; }
-.score-row.lead .nm, .score-row.lead .tt { color: var(--accent); font-weight: 700; }
-.score-row .dl { color: var(--muted); font-size: .66rem; }
-.score-row .tt { font-weight: 700; min-width: 3ch; text-align: right; }
+.ov .t { font-style: italic; font-size: clamp(2rem,8vw,3rem); text-align: center; }
+.ov .s { font-family: 'IBM Plex Mono', monospace; font-size: .6rem; letter-spacing: .3em; color: var(--muted); text-transform: uppercase; margin: .5rem 0 1.5rem; text-align: center; }
+.tabla { width: 100%; max-width: 300px; margin-bottom: 1.6rem; }
+.fila { display: flex; align-items: center; justify-content: space-between; padding: .5rem .2rem; border-bottom: 1px solid var(--line); font-family: 'IBM Plex Mono', monospace; font-size: .72rem; letter-spacing: .1em; }
+.fila:last-child { border-bottom: none; }
+.fila .nm { text-transform: uppercase; letter-spacing: .2em; }
+.fila.lider .nm, .fila.lider .tt { color: var(--oro); font-weight: 700; }
+.fila .dl { color: var(--muted); font-size: .66rem; }
+.fila .tt { font-weight: 700; min-width: 3ch; text-align: right; }
 </style>
 </head>
 <body>
 
-<svg width="0" height="0" style="position:absolute" aria-hidden="true">
-  <defs>
-    <symbol id="ico-domino" viewBox="0 0 64 64">
-      <g stroke="currentColor" stroke-width="2.6" fill="none">
-        <rect x="18" y="6" width="28" height="52" rx="5"/>
-        <line x1="18" y1="32" x2="46" y2="32"/>
-      </g>
-      <g fill="currentColor">
-        <circle cx="27" cy="15" r="3"/><circle cx="37" cy="15" r="3"/>
-        <circle cx="27" cy="24" r="3"/><circle cx="37" cy="24" r="3"/>
-        <circle cx="32" cy="45" r="3"/>
-        <circle cx="27" cy="39" r="3"/><circle cx="37" cy="51" r="3"/>
-      </g>
-    </symbol>
-  </defs>
-</svg>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="ico-domino" viewBox="0 0 64 64">
+    <g stroke="currentColor" stroke-width="2.6" fill="none">
+      <rect x="18" y="6" width="28" height="52" rx="5"/><line x1="18" y1="32" x2="46" y2="32"/>
+    </g>
+    <g fill="currentColor">
+      <circle cx="27" cy="15" r="3"/><circle cx="37" cy="15" r="3"/>
+      <circle cx="27" cy="24" r="3"/><circle cx="37" cy="24" r="3"/>
+      <circle cx="32" cy="45" r="3"/><circle cx="27" cy="39" r="3"/><circle cx="37" cy="51" r="3"/>
+    </g>
+  </symbol>
+</defs></svg>
 
-<button id="theme-toggle" aria-label="Cambiar tema"><span class="knob"></span></button>
-<button id="sound-toggle" aria-label="Sonido"><span class="ic-on">♪</span><span class="ic-off">✕</span></button>
+<button id="theme-toggle" aria-label="Tema"><span class="knob"></span></button>
+<button id="sound-toggle" aria-label="Sonido"><span class="on">♪</span><span class="off">✕</span></button>
 <button id="help-btn" aria-label="Cómo se juega">?</button>
 
-<!-- TUTORIAL -->
-<div id="tutorial-overlay">
+<div id="tutorial">
   <h2>Cómo se juega</h2>
-  <div class="tut-sub">ónix · dominó por rondas</div>
-  <div class="tut-step"><div class="tut-num">1</div><div class="tut-text">Dominó <b>doble seis</b>: 28 fichas. Se reparten 7 por jugador (6 si sois cuatro) y el resto queda en el <b>pozo</b>.</div></div>
-  <div class="tut-step"><div class="tut-num">2</div><div class="tut-text">Sale quien tenga el <b>doble más alto</b>. En las rondas siguientes sale quien ganó la anterior.</div></div>
-  <div class="tut-step"><div class="tut-num">3</div><div class="tut-text"><b>Arrastra</b> la ficha a la mesa y suéltala donde quieras. Con <b>dos dedos</b> la giras, y si la acercas a un extremo se coloca sola. Si no puedes, <b>robas del pozo</b> hasta poder; si el pozo está vacío, pasas.</div></div>
-  <div class="tut-step"><div class="tut-num">4</div><div class="tut-text">La ronda acaba cuando alguien se queda <b>sin fichas</b>, o cuando nadie puede jugar (<b>cierre</b>): entonces gana quien menos puntos tenga en la mano.</div></div>
-  <div class="tut-step"><div class="tut-num">★</div><div class="tut-text">El ganador de la ronda resta <b>5 puntos</b>. Los demás suman los <b>puntos de las fichas</b> que les queden: un 5/2 y un 1/3 son 11.</div></div>
-  <div class="tut-step"><div class="tut-num">♛</div><div class="tut-text">Los puntos son malos: la partida acaba en cuanto alguien <b>llega al límite</b> (50, 100 o 150) y gana quien tenga el <b>total más bajo</b>.</div></div>
-  <button class="btn-secondary btn tut-close" id="tut-close">cerrar</button>
+  <div class="sub">ónix · dominó sobre mesa libre</div>
+  <div class="paso"><div class="n">1</div><div class="t">Dominó <b>doble seis</b>. Siete fichas para ti abajo, siete para Iris arriba, y el resto en el <b>pozo</b>.</div></div>
+  <div class="paso"><div class="n">2</div><div class="t">Sale el <b>doble más alto</b> de las dos manos. Se clava en el centro y juega el otro.</div></div>
+  <div class="paso"><div class="n">3</div><div class="t"><b>Arrastra</b> una ficha hasta un extremo. En cuanto casa, se encaja sola, se ilumina y <b>pasa el turno</b>. La mesa es libre: puedes dejar las fichas donde quieras mientras piensas.</div></div>
+  <div class="paso"><div class="n">4</div><div class="t"><b>Toca una ficha</b> sin arrastrarla para <b>girarla</b> 90°.</div></div>
+  <div class="paso"><div class="n">5</div><div class="t">Si no casas, toca el <b>pozo</b>. Puedes robar <b>dos veces</b> por turno; si sigues sin casar, pasas.</div></div>
+  <div class="paso"><div class="n">★</div><div class="t">Quien se queda sin fichas gana la ronda y <b>resta 5</b>. El otro <b>suma</b> los puntos que le queden en la mano.</div></div>
+  <div class="paso"><div class="n">♛</div><div class="t">Los puntos son malos: la partida acaba cuando alguien <b>llega al límite</b> y gana quien tenga el <b>total más bajo</b>.</div></div>
+  <div class="btn-row" style="margin:.6rem 0 1rem"><button class="btn btn-sec" id="tut-cerrar">cerrar</button></div>
 </div>
 
-<!-- SPLASH -->
 <div id="app-splash">
   <div class="splash-seal"><svg viewBox="0 0 64 64" style="color:var(--accent)"><use href="#ico-domino"/></svg></div>
 </div>
 
-<!-- HOME -->
 <div id="screen-home" class="screen visible">
   <div class="seal"><svg style="color:var(--accent)"><use href="#ico-domino"/></svg></div>
   <div class="title"><em>Ó</em><span>nix</span></div>
   <div class="subtitle">dominó</div>
-  <div class="btn-row">
-    <button class="btn" id="btn-play">Jugar</button>
-  </div>
-  <div class="ver-tag" id="ver-tag">v0.12.0</div>
+  <div class="btn-row"><button class="btn" id="btn-jugar">Jugar</button></div>
+  <div class="ver-tag" id="ver-tag">v0.20.0</div>
 </div>
 
-<!-- SETUP -->
 <div id="screen-setup" class="screen">
   <div class="seal"><svg style="color:var(--accent)"><use href="#ico-domino"/></svg></div>
   <div class="subtitle">preparar partida</div>
-
-  <div class="section-label">jugadores</div>
-  <div class="cards" id="players-cards">
-    <button class="card small selected" data-players="2"><div class="c-roman">II</div><div class="c-name">2</div></button>
-    <button class="card small" data-players="3"><div class="c-roman">III</div><div class="c-name">3</div></button>
-    <button class="card small" data-players="4"><div class="c-roman">IV</div><div class="c-name">4</div></button>
-  </div>
-
   <div class="section-label">se pierde al llegar a</div>
-  <div class="cards" id="limit-cards">
-    <button class="card small" data-limit="50"><div class="c-roman">L</div><div class="c-name">50</div></button>
-    <button class="card small selected" data-limit="100"><div class="c-roman">C</div><div class="c-name">100</div></button>
-    <button class="card small" data-limit="150"><div class="c-roman">CL</div><div class="c-name">150</div></button>
+  <div class="cards" id="limite-cards">
+    <button class="card" data-limite="50"><div class="roman">L</div><div class="name">50</div></button>
+    <button class="card selected" data-limite="100"><div class="roman">C</div><div class="name">100</div></button>
+    <button class="card" data-limite="150"><div class="roman">CL</div><div class="name">150</div></button>
   </div>
-
-  <div class="btn-row">
-    <button class="btn" id="btn-start">Empezar</button>
-  </div>
-  <div class="btn-row btn-back-row">
-    <button class="btn-secondary btn" id="btn-setup-back">Volver</button>
-  </div>
+  <div class="btn-row"><button class="btn" id="btn-empezar">Empezar</button></div>
+  <div class="btn-row" style="margin-top:1.3rem"><button class="btn btn-sec" id="btn-volver">Volver</button></div>
 </div>
 
-<!-- JUEGO -->
 <div id="screen-game" class="screen">
-  <div class="game-head">
-    <div class="status-bar" id="status-bar"></div>
-    <div class="round-line" id="round-line"></div>
-    <div class="turn-line" id="turn-line"></div>
+  <div class="cab">
+    <div class="m" id="cab-tu"><span>tú</span> <b id="m-tu">0</b></div>
+    <div class="m turno" id="cab-turno"><b id="m-turno">—</b></div>
+    <div class="m" id="cab-ia"><span>iris</span> <b id="m-ia">0</b></div>
   </div>
-
-  <div class="board-wrap">
-    <div id="mesa"></div>
-    <div class="end-marks">
-      <button class="end-pick" id="end-L" disabled>◀ izq · <b id="end-L-v">—</b></button>
-      <button class="end-pick" id="end-R" disabled><b id="end-R-v">—</b> · der ▶</button>
-    </div>
+  <div id="mesa">
+    <div class="raya" id="raya-ia"></div>
+    <div class="raya" id="raya-tu"></div>
+    <div id="hueco"></div>
+    <div id="pozo"><div class="n">0</div></div>
   </div>
-
-  <div class="hand-wrap">
-    <div id="hand"></div>
-  </div>
-
-  <div class="game-foot">
-    <button class="btn-secondary btn" id="btn-draw">Robar</button>
-    <button class="btn-secondary btn" id="btn-pass">Pasar</button>
-    <button class="btn-secondary btn" id="btn-menu">Menú</button>
+  <div class="pie">
+    <div id="aviso">—</div>
+    <div id="salir" style="cursor:pointer">menú</div>
   </div>
 </div>
 
-<!-- RESUMEN DE RONDA -->
-<div id="round-overlay" class="ov">
+<div id="ov-ronda" class="ov">
   <div class="seal"><svg style="color:var(--accent)"><use href="#ico-domino"/></svg></div>
-  <div class="ov-title" id="rnd-title">—</div>
-  <div class="ov-sub" id="rnd-sub">—</div>
-  <div class="score-table" id="rnd-table"></div>
-  <div class="btn-row">
-    <button class="btn" id="btn-next-round">Siguiente ronda</button>
-  </div>
+  <div class="t" id="r-t">—</div>
+  <div class="s" id="r-s">—</div>
+  <div class="tabla" id="r-tabla"></div>
+  <div class="btn-row"><button class="btn" id="btn-siguiente">Siguiente ronda</button></div>
 </div>
 
-<!-- FIN DE PARTIDA -->
-<div id="end-overlay" class="ov">
+<div id="ov-fin" class="ov">
   <div class="seal"><svg style="color:var(--accent)"><use href="#ico-domino"/></svg></div>
-  <div class="ov-title" id="end-title">—</div>
-  <div class="ov-sub" id="end-sub">—</div>
-  <div class="score-table" id="end-table"></div>
+  <div class="t" id="f-t">—</div>
+  <div class="s" id="f-s">—</div>
+  <div class="tabla" id="f-tabla"></div>
   <div class="btn-row">
-    <button class="btn" id="btn-rematch">Revancha</button>
-    <button class="btn-secondary btn" id="btn-end-menu">Menú</button>
+    <button class="btn" id="btn-revancha">Revancha</button>
+    <button class="btn btn-sec" id="btn-menu">Menú</button>
   </div>
 </div>
-
 <script>
 "use strict";
+const VERSION = 'v0.20.0';
 const $ = id => document.getElementById(id);
-const VERSION = 'v0.12.0';
+const PUNTOS = { 0:[], 1:[5], 2:[1,9], 3:[1,5,9], 4:[1,3,7,9], 5:[1,3,5,7,9], 6:[1,2,3,7,8,9] };
+const DIR = { 0:[1,0], 90:[0,1], 180:[-1,0], 270:[0,-1] };
+const EJES = [[1,0],[-1,0],[0,1],[0,-1]];
 
-/* =====================================================================
-   ESTADO
-   ===================================================================== */
-const NAMES = ['Tú', 'Iris', 'Bruno', 'Vera'];
-const PIPS = {
-  0: [], 1: [5], 2: [1, 9], 3: [1, 5, 9],
-  4: [1, 3, 7, 9], 5: [1, 3, 5, 7, 9], 6: [1, 3, 4, 6, 7, 9]
-};
-
-let nPlayers = 2;
-let limit = 100;
-let round = 0;
-let totals = [];
-let hands = [];
-let chain = [];
+const mesa = $('mesa');
+let U = 24;
+let fichas = [];
+let cadena = [];
+let manoIA = [];
+let dorsosIA = [];
 let pozo = [];
-let turn = 0;
-let passes = 0;
-let lastPlayer = 0;
-let starter = 0;
-let selected = null;      // id de ficha seleccionada en la mano
-let busy = false;         // bloquea input mientras juega la IA
-let roundOver = false;
-let sound = true;
+let turno = 0;
+let bloqueo = false;
+let totales = [0, 0];
+let pases = 0;
+let robos = 0;
+const MAX_ROBOS = 2;
+let arrastre = null;
+let limite = 100;
+let ronda = 0;
+let sonido = true;
 
-/* =====================================================================
-   UTILIDADES
-   ===================================================================== */
-function makeSet() {
+function leerU() { U = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--uu')) || 24; }
+/* ============================================================ dibujo */
+function mitadHTML(v) {
+  let s = '';
+  for (let i = 1; i <= 9; i++) s += '<i' + (PUNTOS[v].indexOf(i) >= 0 ? ' class="p"' : '') + '></i>';
+  return '<div class="mitad">' + s + '</div>';
+}
+function crearCuerpo(a, b) {
+  const el = document.createElement('div');
+  el.className = 'ficha';
+  const c = document.createElement('div');
+  c.className = 'cuerpo';
+  c.innerHTML = mitadHTML(a) + mitadHTML(b);
+  el.appendChild(c);
+  mesa.appendChild(el);
+  return el;
+}
+function situar(f) { f.el.style.transform = 'translate(' + (f.vx - U) + 'px,' + (f.vy - U/2) + 'px)'; }
+function girar(f) {
+  f.el.style.setProperty('--r', f.rot);
+  f.el.firstChild.style.transform = 'rotate(' + f.rot + 'deg)'
+    + (arrastre && arrastre.f === f ? ' scale(1.06)' : '');
+}
+
+let animando = false;
+function animar() {
+  let vivo = false;
+  for (const f of fichas) {
+    if (arrastre && arrastre.f === f) { f.vx = f.x; f.vy = f.y; }
+    else {
+      const dx = f.x - f.vx, dy = f.y - f.vy;
+      if (Math.abs(dx) > .25 || Math.abs(dy) > .25) { f.vx += dx * .3; f.vy += dy * .3; vivo = true; }
+      else { f.vx = f.x; f.vy = f.y; }
+    }
+    situar(f);
+  }
+  if (vivo || arrastre) requestAnimationFrame(animar); else animando = false;
+}
+function arrancar() { if (!animando) { animando = true; requestAnimationFrame(animar); } }
+
+/* ============================================================ geometría */
+function medios(rot) {
+  const h = (((rot % 180) + 180) % 180) === 0;
+  return { mx: h ? U : U/2, my: h ? U/2 : U };
+}
+function dentro(f) {
+  const m = medios(f.rot), w = mesa.clientWidth, h = mesa.clientHeight;
+  f.x = Math.max(m.mx + 2, Math.min(w - m.mx - 2, f.x));
+  f.y = Math.max(m.my + 2, Math.min(h - m.my - 2, f.y));
+}
+function mitades(f) {
+  const d = DIR[((f.rot % 360) + 360) % 360];
+  return [ { x: f.x - d[0]*U/2, y: f.y - d[1]*U/2, v: f.a },
+           { x: f.x + d[0]*U/2, y: f.y + d[1]*U/2, v: f.b } ];
+}
+// Mini imán: se acepta con holgura (hasta media ficha de desvío) y luego
+// encajar() la coloca exacta. Así vale con dejarla cerca.
+function pegadas(p, q) {
+  const gx = Math.abs(p.x - q.x), gy = Math.abs(p.y - q.y);
+  return (gy <= U*.62 && gx >= U*.58 && gx <= U*1.5)
+      || (gx <= U*.62 && gy >= U*.58 && gy <= U*1.5);
+}
+function choque(A, B, eje) {
+  const a = medios(A.rot), b = medios(B.rot);
+  const dx = B.x - A.x, dy = B.y - A.y;
+  const sx = a.mx + b.mx - Math.abs(dx), sy = a.my + b.my - Math.abs(dy);
+  if (sx <= 0 || sy <= 0) return null;
+  const porX = eje === 'x' ? true : eje === 'y' ? false : (sx < sy);
+  if (porX) return { x: dx >= 0 ? sx + .5 : -sx - .5, y: 0 };
+  return { x: 0, y: dy >= 0 ? sy + .5 : -sy - .5 };
+}
+let ultChoque = 0;
+function empujar(mandona, eje) {
+  let hubo = false;
+  for (let v = 0; v < 22; v++) {
+    let toco = false;
+    for (let i = 0; i < fichas.length; i++) for (let j = i+1; j < fichas.length; j++) {
+      const A = fichas[i], B = fichas[j];
+      const e = (A === mandona || B === mandona) ? eje : null;
+      const c = choque(A, B, e);
+      if (!c) continue;
+      toco = true; hubo = true;
+      const fija = v < 9 ? mandona : null;
+      if (A.fija && B.fija) continue;
+      if (A === fija || A.fija) { B.x += c.x; B.y += c.y; dentro(B); }
+      else if (B === fija || B.fija) { A.x -= c.x; A.y -= c.y; dentro(A); }
+      else { A.x -= c.x/2; A.y -= c.y/2; dentro(A); B.x += c.x/2; B.y += c.y/2; dentro(B); }
+    }
+    if (!toco) break;
+  }
+  if (hubo && navigator.vibrate && Date.now() - ultChoque > 220) { ultChoque = Date.now(); navigator.vibrate(4); }
+  return hubo;
+}
+function libre(x, y, rot, salvo) {
+  const f = { x: x, y: y, rot: rot };
+  const m = medios(rot), w = mesa.clientWidth, h = mesa.clientHeight;
+  if (x - m.mx < 2 || y - m.my < 2 || x + m.mx > w - 2 || y + m.my > h - 2) return false;
+  for (const g of fichas) { if (g === salvo) continue; if (choque(f, g)) return false; }
+  return true;
+}
+
+/* ============================================================ reglas */
+function rotN(r) { return ((r % 360) + 360) % 360; }
+function esDoble(f) { return f.a === f.b; }
+
+/* Ranuras abiertas de la cadena.
+   - Ficha normal: cada mitad libre admite una unión, y puede salir en
+     cualquier dirección menos hacia su propia pareja.
+   - Doble atravesado: recibe por sus DOS COSTADOS, centrado. No por las
+     puntas, que es lo que hacía el escalón. */
+function ranuras() {
+  const out = [];
+  for (const g of cadena) {
+    if (esDoble(g)) {
+      const gd = DIR[rotN(g.rot)];
+      const lados = Math.abs(gd[0]) === 1 ? [[0,1],[0,-1]] : [[1,0],[-1,0]];
+      for (const d of lados) {
+        if ((g.lados || []).some(l => l[0] === d[0] && l[1] === d[1])) continue;
+        out.push({ g: g, base: { x: g.x, y: g.y }, d: d, v: g.a, doble: true });
+      }
+    } else {
+      const m = mitades(g);
+      for (let j = 0; j < 2; j++) {
+        if (g.usadas[j]) continue;
+        const otra = m[1-j];
+        const haciaDentro = [Math.sign(otra.x - m[j].x), Math.sign(otra.y - m[j].y)];
+        for (const d of EJES) {
+          if (d[0] === haciaDentro[0] && d[1] === haciaDentro[1]) continue;
+          out.push({ g: g, j: j, base: m[j], d: d, v: m[j].v, doble: false });
+        }
+      }
+    }
+  }
+  return out;
+}
+function valoresAbiertos() {
+  const s = new Set();
+  for (const r of ranuras()) s.add(r.v);
+  return s;
+}
+function ladoDe(f, g) {
+  const dx = f.x - g.x, dy = f.y - g.y;
+  return Math.abs(dx) >= Math.abs(dy) ? [Math.sign(dx) || 1, 0] : [0, Math.sign(dy) || 1];
+}
+
+// ¿Cabe una ficha ahí sin pisar ninguna jugada ya hecha?
+function cabe(x, y, rot, salvo) {
+  const p = { x: x, y: y, rot: rot };
+  const m = medios(rot), w = mesa.clientWidth, hh = mesa.clientHeight;
+  if (x - m.mx < 2 || y - m.my < 2 || x + m.mx > w - 2 || y + m.my > hh - 2) return false;
+  for (const g of cadena) { if (g === salvo) continue; if (choque(p, g)) return false; }
+  return true;
+}
+
+// ¿La ficha f, tal y como está puesta, engancha con alguna ranura?
+// Se miran TODAS y gana la que deje la ficha más cerca de donde la soltaste:
+// así se respeta lo que querías hacer y no la primera que salga en la lista.
+function conexion(f) {
+  const m = mitades(f);
+  let mejor = null, mejorD = Infinity;
+  for (const r of ranuras()) {
+    for (let i = 0; i < 2; i++) {
+      if (m[i].v !== r.v) continue;
+      if (r.doble) {
+        const l = ladoDe(f, r.g);
+        if (l[0] !== r.d[0] || l[1] !== r.d[1]) continue;
+        const mg = mitades(r.g);
+        if (!pegadas(m[i], mg[0]) && !pegadas(m[i], mg[1])) continue;
+      } else {
+        if (!pegadas(m[i], r.base)) continue;
+      }
+      const p = sitioEn(r, f.a, f.b, i, f.rot);
+      if (!cabe(p.x, p.y, f.rot, f)) continue;
+      const d = Math.hypot(p.x - f.x, p.y - f.y);
+      if (d < mejorD) { mejorD = d; mejor = { mia: i, r: r }; }
+    }
+  }
+  return mejor;
+}
+
+// Sitio exacto donde debe quedar una ficha al engancharse a una ranura.
+function sitioEn(r, a, b, mia, rot) {
+  const dir = DIR[rotN(rot)];
+  const cruzada = (a === b) && Math.abs(dir[0]*r.d[0] + dir[1]*r.d[1]) !== 1;
+  if (cruzada) return { x: r.base.x + r.d[0]*U, y: r.base.y + r.d[1]*U };
+  const s = mia === 0 ? -1 : 1;
+  return { x: r.base.x + r.d[0]*U - s*dir[0]*U/2,
+           y: r.base.y + r.d[1]*U - s*dir[1]*U/2 };
+}
+
+// Encaja a hueso: es el imán. Aceptamos con holgura y luego colocamos exacto.
+function encajar(f, con) {
+  const p = sitioEn(con.r, f.a, f.b, con.mia, f.rot);
+  f.x = p.x; f.y = p.y;
+  dentro(f);
+}
+
+function anotarJugada(f, con) {
+  const r = con.r;
+  f.fija = true;
+  f.usadas = [false, false];
+  f.usadas[con.mia] = true;
+  f.lados = [];
+  if (r.doble) {
+    r.g.lados = r.g.lados || [];
+    r.g.lados.push(r.d);
+    r.g.usadas[r.g.usadas[0] ? 1 : 0] = true;
+  } else {
+    r.g.usadas[r.j] = true;
+  }
+  f.origen = r.g;                  // a qué ficha se enganchó de verdad
+  f.el.classList.remove('viva');
+  f.el.classList.add('jugada', 'recien');
+  sClac();
+  setTimeout(() => f.el.classList.remove('recien'), 520);
+  cadena.push(f);
+}
+
+// Poder jugar no es que te case un número: es que EXISTA un hueco donde
+// quepa la ficha. Si no, el juego te daba por servido y te dejaba encerrado.
+function puedeJugar(mano) {
+  const v = valoresAbiertos();
+  if (!mano.some(t => v.has(t.a) || v.has(t.b))) return false;   // atajo barato
+  return !!buscarEn(mano);
+}
+function miMano() { return fichas.filter(f => !f.fija); }
+
+// Marca la ficha que sí te casa, para que no te quedes atascado buscándola.
+function pista(j) {
+  const f = miMano().find(x => x.a === j.t.a && x.b === j.t.b) || j.t;
+  $('aviso').innerHTML = 'aún te casa el <b>' + j.t.a + '/' + j.t.b + '</b> · no puedes robar';
+  if (f && f.el) {
+    f.el.classList.add('pista');
+    setTimeout(() => f.el.classList.remove('pista'), 1600);
+  }
+  if (navigator.vibrate) navigator.vibrate([4, 60, 4]);
+}
+
+// ¿la has soltado junto a la cadena? sirve para avisarte de que ahí no casa
+function cerca(f) {
+  for (const g of cadena) if (Math.hypot(f.x - g.x, f.y - g.y) < U * 3) return true;
+  return false;
+}
+
+/* ============================================================ partida */
+function baraja() {
   const t = [];
-  for (let a = 0; a <= 6; a++) for (let b = a; b <= 6; b++) t.push({ a, b, id: a + '-' + b });
+  for (let a = 0; a <= 6; a++) for (let b = a; b <= 6; b++) t.push({ a: a, b: b });
+  for (let i = t.length - 1; i > 0; i--) { const j = (Math.random()*(i+1))|0; const x=t[i]; t[i]=t[j]; t[j]=x; }
   return t;
 }
-function shuffle(arr) {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    const tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+
+function nuevaRonda() {
+  leerU();
+  fichas.forEach(f => f.el.remove());
+  dorsosIA.forEach(d => d.remove());
+  fichas = []; cadena = []; dorsosIA = []; arrastre = null; bloqueo = false; pases = 0; robos = 0;
+  cerrarCarteles();
+
+  const w = mesa.clientWidth, h = mesa.clientHeight;
+  $('raya-ia').style.top = Math.round(U * 3.2) + 'px';
+  $('raya-tu').style.top = Math.round(h - U * 3.2) + 'px';
+
+  const mazo = baraja();
+  const mias = mazo.splice(0, 7);
+  manoIA = mazo.splice(0, 7);
+  pozo = mazo;
+
+  // sale el doble más alto que haya en las dos manos
+  let mejor = -1, deQuien = null, cual = -1;
+  const mirar = (mano, quien) => mano.forEach((t, i) => {
+    const v = (t.a === t.b) ? 100 + t.a : t.a + t.b;
+    if (v > mejor) { mejor = v; deQuien = quien; cual = i; }
+  });
+  mirar(mias, 0); mirar(manoIA, 1);
+  const sal = (deQuien === 0 ? mias : manoIA).splice(cual, 1)[0];
+
+  colocarMano(mias);
+
+  const fs = crearFicha(sal.a, sal.b, Math.round(w/2), Math.round(h*.46), 90);
+  fs.fija = true; fs.usadas = [false, false]; fs.lados = []; fs.salida = true;
+  fs.el.classList.add('jugada');
+  cadena.push(fs);
+
+  const hu = $('hueco');
+  hu.style.width = (U + 10) + 'px'; hu.style.height = (U*2 + 10) + 'px';
+  hu.style.left = Math.round(fs.x - U/2 - 5) + 'px';
+  hu.style.top = Math.round(fs.y - U - 5) + 'px';
+
+  pintarIA(); pintarPozo();
+  turno = deQuien === 0 ? 1 : 0;     // sale uno, juega el otro
+  $('aviso').textContent = 'sale el ' + sal.a + '/' + sal.b + ' de ' + (deQuien === 0 ? 'tu mano' : 'Iris');
+  cambioTurno();
+  arrancar();
+}
+
+function crearFicha(a, b, x, y, rot) {
+  const f = { a: a, b: b, x: x, y: y, rot: rot, el: crearCuerpo(a, b) };
+  f.vx = x; f.vy = y;
+  dentro(f);
+  fichas.push(f);
+  situar(f); girar(f);
+  return f;
+}
+
+function colocarMano(mano) {
+  const w = mesa.clientWidth, h = mesa.clientHeight;
+  const paso = Math.max(U*1.3, Math.min(U*2.3, (w - 20) / Math.max(1, mano.length)));
+  mano.forEach((t, i) => crearFicha(t.a, t.b, 10 + paso*i + paso/2, h - U*1.5, 90));
+}
+
+function pintarIA() {
+  dorsosIA.forEach(d => d.remove());
+  dorsosIA = [];
+  const w = mesa.clientWidth;
+  const paso = Math.max(U*.7, Math.min(U*1.5, (w - 20) / Math.max(1, manoIA.length)));
+  manoIA.forEach((t, i) => {
+    const d = document.createElement('div');
+    d.className = 'dorso';
+    d.style.left = Math.round(10 + paso*i) + 'px';
+    d.style.top = Math.round(U*.7) + 'px';
+    mesa.appendChild(d);
+    dorsosIA.push(d);
+  });
+}
+
+function pintarPozo() {
+  const p = $('pozo'), w = mesa.clientWidth, h = mesa.clientHeight;
+  // arriba a la derecha, en la banda de Iris: es donde menos estorba
+  p.style.width = Math.round(U*1.15) + 'px'; p.style.height = Math.round(U*2.2) + 'px';
+  p.style.left = Math.round(w - U*1.15 - 12) + 'px';
+  p.style.top = Math.round(U*.5) + 'px';
+  const sePuedeRobar = turno === 0 && !bloqueo && pozo.length && robos < MAX_ROBOS && !puedeJugar(miMano());
+  p.className = 'dorso' + (sePuedeRobar ? ' activo' : '');
+  p.id = 'pozo';
+  p.innerHTML = '<div class="n">' + pozo.length + '</div>';
+}
+
+function cambioTurno() {
+  robos = 0;
+  pintarPozo();
+  if (turno === 0) {
+    $('m-turno').textContent = 'tu turno';
+    sTurno();
+    if (!puedeJugar(miMano())) {
+      const quedan = MAX_ROBOS - robos;
+      if (pozo.length && quedan > 0) {
+        $('aviso').innerHTML = 'no casas · <b>roba</b> · te ' + (quedan === 1 ? 'queda 1' : 'quedan ' + quedan);
+      } else {
+        $('aviso').innerHTML = 'no casas · <b>pasas</b>';
+        pasar(0); return;
+      }
+    } else {
+      $('aviso').innerHTML = 'arrastra una ficha a un <b>extremo</b>';
+    }
+  } else {
+    $('m-turno').textContent = 'iris piensa';
+    bloqueo = true;
+    setTimeout(turnoIA, 800 + Math.random()*500);
   }
-  return arr;
+  comprobarFin();
 }
-function pipsOf(hand) { return hand.reduce((s, t) => s + t.a + t.b, 0); }
-function leftEnd() { return chain.length ? chain[0].a : null; }
-function rightEnd() { return chain.length ? chain[chain.length - 1].b : null; }
-function fitsL(t) { if (!chain.length) return true; const e = leftEnd(); return t.a === e || t.b === e; }
-function fitsR(t) { if (!chain.length) return true; const e = rightEnd(); return t.a === e || t.b === e; }
-function canPlay(t) { return fitsL(t) || fitsR(t); }
-function hasMove(p) { return hands[p].some(canPlay); }
 
-/* =====================================================================
-   RENDER DE FICHAS
-   ===================================================================== */
-function halfHTML(v) {
-  const on = PIPS[v];
+/* ---------------- tu jugada ---------------- */
+function intentar(f) {
+  if (turno !== 0 || bloqueo || f.fija) return;
+  const con = conexion(f);
+  if (!con) {
+    if (cerca(f)) $('aviso').innerHTML = 'ahí <b>no casa</b> · prueba otro extremo';
+    return;
+  }
+  encajar(f, con);
+  anotarJugada(f, con);     // primero queda clavada...
+  empujar(f, null);         // ...y luego se apartan las sueltas
+  pases = 0;
+  if (navigator.vibrate) navigator.vibrate([8, 30, 14]);
+  arrancar();
+  if (miMano().length === 0) { bloqueo = true; setTimeout(() => finRonda(0, 'dominó'), 1000); return; }
+  turno = 1;
+  cambioTurno();
+}
+
+// ¿Se ha tocado el pozo? Con margen: el sitio es pequeño y está en la esquina.
+function tocaPozo(cx, cy) {
+  const r = $('pozo').getBoundingClientRect();
+  const m = 18;
+  return cx >= r.left - m && cx <= r.right + m && cy >= r.top - m && cy <= r.bottom + m;
+}
+
+function robar() {
+  if (turno !== 0 || bloqueo) { $('aviso').textContent = 'espera tu turno'; return; }
+  if (!pozo.length) { $('aviso').innerHTML = 'el pozo está <b>vacío</b>'; return; }
+  if (robos >= MAX_ROBOS) { $('aviso').innerHTML = 'ya has robado <b>2</b> este turno'; return; }
+  const j = buscarEn(miMano());
+  if (j) {                       // te casa algo: no puedes robar, pero te lo enseño
+    pista(j);
+    return;
+  }
+  robos++;
+  sRoba();
+  const t = pozo.pop();
+  const h = mesa.clientHeight;
+  crearFicha(t.a, t.b, mesa.clientWidth - U*1.6, h - U*1.5, 90);
+  empujar(null, null);
+  pintarPozo();
+  arrancar();
+  // sigues en tu turno: solo se revisa si ya puedes jugar o se te acabaron
+  if (puedeJugar(miMano())) {
+    $('aviso').innerHTML = 'ya casas · arrastra a un <b>extremo</b>';
+  } else if (robos >= MAX_ROBOS || !pozo.length) {
+    $('aviso').innerHTML = 'sigues sin casar · <b>pasas</b>';
+    setTimeout(() => pasar(0), 800);
+  } else {
+    $('aviso').innerHTML = 'no casas · <b>roba</b> · te queda ' + (MAX_ROBOS - robos);
+  }
+  pintarPozo();
+}
+
+/* ---------------- turno de Iris ---------------- */
+function turnoIA() {
+  // roba mientras no pueda
+  let n = 0;
+  while (!puedeJugar(manoIA) && pozo.length && n < MAX_ROBOS) { manoIA.push(pozo.pop()); n++; }
+  if (!puedeJugar(manoIA)) {
+    pintarIA(); pintarPozo();
+    $('aviso').textContent = 'Iris pasa';
+    bloqueo = false; pasar(1); return;
+  }
+  const j = buscarSitio();
+  if (!j) {                       // le casa pero no tiene sitio donde ponerla
+    pintarIA();
+    $('aviso').textContent = 'Iris no tiene sitio';
+    bloqueo = false; pasar(1); return;
+  }
+
+  manoIA.splice(j.idx, 1);
+  const f = crearFicha(j.t.a, j.t.b, mesa.clientWidth/2, U*1.4, j.rot);  // entra desde su lado
+  f.x = j.x; f.y = j.y;
+  const con = conexion(f);
+  if (con) anotarJugada(f, con);
+  else { f.fija = true; f.usadas = [false, false]; f.lados = []; f.el.classList.add('jugada'); cadena.push(f); }
+  empujar(f, null);            // aparta tus fichas sueltas si estorbaban
+  girar(f);
+  pintarIA();
+  arrancar();
+  pases = 0;
+  $('aviso').textContent = 'Iris juega el ' + j.t.a + '/' + j.t.b;
+
+  if (manoIA.length === 0) {
+    // se deja ver la última ficha de Iris antes de tapar la mesa
+    $('m-turno').textContent = 'iris cierra';
+    setTimeout(() => finRonda(1, 'dominó'), 1400);
+    return;
+  }
+  bloqueo = false; turno = 0;
+  cambioTurno();
+}
+
+// Busca ficha y sitio válido en alguna ranura abierta. Vale para cualquier
+// mano. Solo se exige que quepa entre las fichas YA JUGADAS: las sueltas se
+// apartan solas al colocar.
+function buscarEn(mano) {
+  let mejor = null, mejorNota = -Infinity;
+  for (const r of ranuras()) {
+    for (let idx = 0; idx < mano.length; idx++) {
+      const t = mano[idx];
+      if (t.a !== r.v && t.b !== r.v) continue;
+      const opciones = [];
+      if (t.a === t.b) opciones.push({ rot: Math.abs(r.d[0]) === 1 ? 90 : 0, mia: 0 });
+      if (t.a === r.v) opciones.push({ rot: rotDe(r.d), mia: 0 });
+      if (t.b === r.v) opciones.push({ rot: rotDe([-r.d[0], -r.d[1]]), mia: 1 });
+      for (const o of opciones) {
+        if (o.rot === null) continue;
+        const p = sitioEn(r, t.a, t.b, o.mia, o.rot);
+        if (!cabe(p.x, p.y, o.rot, null)) continue;
+        const prueba = { a: t.a, b: t.b, x: p.x, y: p.y, rot: o.rot };
+        const m2 = mitades(prueba);
+        let vale = false;
+        for (let i = 0; i < 2; i++) {
+          if (m2[i].v !== r.v) continue;
+          if (r.doble) {
+            const l = ladoDe(prueba, r.g);
+            if (l[0] !== r.d[0] || l[1] !== r.d[1]) continue;
+            const mg = mitades(r.g);
+            if (pegadas(m2[i], mg[0]) || pegadas(m2[i], mg[1])) vale = true;
+          } else if (pegadas(m2[i], r.base)) vale = true;
+        }
+        if (!vale) continue;
+        let cercaOtra = Infinity;
+        for (const g of cadena) {
+          if (g === r.g) continue;
+          const dd = Math.hypot(p.x - g.x, p.y - g.y);
+          if (dd < cercaOtra) cercaOtra = dd;
+        }
+        if (cercaOtra === Infinity) cercaOtra = U * 6;
+        const w = mesa.clientWidth, hh = mesa.clientHeight;
+        const borde = Math.min(p.x, p.y, w - p.x, hh - p.y);
+        const nota = Math.min(cercaOtra, U*5) + Math.min(borde, U*3) * .8 + (t.a + t.b) * .35;
+        if (nota > mejorNota) { mejorNota = nota; mejor = { idx: idx, t: t, x: p.x, y: p.y, rot: o.rot }; }
+      }
+    }
+  }
+  return mejor;
+}
+function buscarSitio() { return buscarEn(manoIA); }
+
+function rotDe(d) {
+  for (const k of [0, 90, 180, 270]) if (DIR[k][0] === d[0] && DIR[k][1] === d[1]) return k;
+  return null;
+}
+
+// Pasa el turno sin jugar. Dos pases seguidos cierran la ronda.
+function pasar(quien) {
+  pases++;
+  if (pases >= 2) { cerrarPorPuntos(); return; }
+  turno = quien === 0 ? 1 : 0;
+  bloqueo = false;
+  setTimeout(cambioTurno, 700);
+}
+
+/* ---------------- fin ---------------- */
+function comprobarFin() {
+  if (bloqueo) return;
+  if (pozo.length) return;
+  if (puedeJugar(miMano()) || puedeJugar(manoIA)) return;
+  cerrarPorPuntos();
+}
+function cerrarPorPuntos() {
+  bloqueo = true;
+  const mis = miMano().reduce((s,t) => s + t.a + t.b, 0);
+  const sus = manoIA.reduce((s,t) => s + t.a + t.b, 0);
+  setTimeout(() => finRonda(mis <= sus ? 0 : 1, 'cierre'), 900);
+}
+/* ============================================================ arrastre */
+function fichaEn(px, py) {
+  for (let i = fichas.length - 1; i >= 0; i--) {
+    const f = fichas[i], m = medios(f.rot);
+    if (f.fija) continue;
+    if (Math.abs(px - f.x) <= m.mx && Math.abs(py - f.y) <= m.my) return f;
+  }
+  return null;
+}
+function alFrente(f) {
+  const i = fichas.indexOf(f);
+  if (i >= 0) { fichas.splice(i,1); fichas.push(f); }
+  mesa.appendChild(f.el);
+}
+function local(t) { const r = mesa.getBoundingClientRect(); return { x: t.clientX - r.left, y: t.clientY - r.top }; }
+
+function empezar(px, py, id) {
+  if (turno !== 0 || bloqueo) return false;
+  const f = fichaEn(px, py);
+  if (!f) return false;
+  alFrente(f);
+  f.el.classList.add('viva');
+  arrastre = { f: f, id: id, offx: f.x - px, offy: f.y - py, movido: false,
+               t0: Date.now(), px0: px, py0: py };
+  girar(f); arrancar();
+  return true;
+}
+function mover(px, py) {
+  if (!arrastre) return;
+  const f = arrastre.f;
+  const nx = px + arrastre.offx, ny = py + arrastre.offy;
+  const vx = nx - f.x, vy = ny - f.y;
+  f.x = nx; f.y = ny; dentro(f);
+  if (!arrastre.movido && Math.hypot(px - arrastre.px0, py - arrastre.py0) > 10) arrastre.movido = true;
+  let eje = null;
+  if (Math.abs(vx) > .4 || Math.abs(vy) > .4) eje = Math.abs(vx) >= Math.abs(vy) ? 'x' : 'y';
+  empujar(f, eje);
+  arrancar();
+}
+function soltar() {
+  if (!arrastre) return;
+  const a = arrastre; arrastre = null;
+  a.f.el.classList.remove('viva');
+  if (!a.movido && Date.now() - a.t0 < 260) {
+    a.f.rot += 90; dentro(a.f); empujar(a.f, null);
+    if (navigator.vibrate) navigator.vibrate(8);
+  }
+  girar(a.f);
+  intentar(a.f);
+  arrancar();
+}
+
+mesa.addEventListener('touchstart', e => {
+  const t = e.changedTouches[0], p = local(t);
+  if (tocaPozo(t.clientX, t.clientY)) { robar(); e.preventDefault(); return; }
+  if (arrastre) { e.preventDefault(); return; }
+  if (empezar(p.x, p.y, t.identifier)) e.preventDefault();
+}, { passive: false });
+
+mesa.addEventListener('touchmove', e => {
+  if (!arrastre) return;
+  for (const t of e.changedTouches) {
+    if (t.identifier !== arrastre.id) continue;
+    const p = local(t); mover(p.x, p.y); e.preventDefault(); break;
+  }
+}, { passive: false });
+
+function finTactil(e) {
+  if (!arrastre) return;
+  for (const t of e.changedTouches) if (t.identifier === arrastre.id) { soltar(); break; }
+}
+mesa.addEventListener('touchend', finTactil);
+mesa.addEventListener('touchcancel', finTactil);
+
+mesa.addEventListener('mousedown', e => {
+  const p = local(e);
+  if (tocaPozo(e.clientX, e.clientY)) { robar(); return; }
+  if (empezar(p.x, p.y, 'raton')) e.preventDefault();
+});
+window.addEventListener('mousemove', e => { if (arrastre && arrastre.id === 'raton') { const p = local(e); mover(p.x, p.y); } });
+window.addEventListener('mouseup', () => { if (arrastre && arrastre.id === 'raton') soltar(); });
+
+
+/* ============================================================ sonido */
+let actx = null;
+function son(f, d, tipo) {
+  if (!sonido) return;
+  try {
+    if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = tipo || 'triangle'; o.frequency.value = f;
+    g.gain.setValueAtTime(.08, actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(.0001, actx.currentTime + d);
+    o.connect(g); g.connect(actx.destination);
+    o.start(); o.stop(actx.currentTime + d);
+  } catch (e) {}
+}
+const sClac = () => { son(190 + Math.random()*30, .06, 'square'); setTimeout(() => son(120, .05, 'triangle'), 30); };
+const sTurno = () => son(430, .05);
+const sRoba  = () => son(320, .05);
+const sGana  = () => { son(520, .12); setTimeout(() => son(660, .16), 120); setTimeout(() => son(784, .22), 260); };
+const sPierde= () => { son(300, .16); setTimeout(() => son(220, .24), 150); };
+
+/* ============================================================ fin de ronda */
+function cerrarCarteles() {
+  $('ov-ronda').classList.remove('visible');
+  $('ov-fin').classList.remove('visible');
+}
+
+function tablaHTML(delta) {
+  const orden = [0, 1].sort((a, b) => totales[a] - totales[b]);
+  const nom = ['Tú', 'Iris'];
   let s = '';
-  for (let i = 1; i <= 9; i++) s += '<span class="cell' + (on.indexOf(i) >= 0 ? ' p' : '') + '"></span>';
-  return '<div class="half">' + s + '</div>';
-}
-function tileHTML(t, orient, extra) {
-  return '<div class="tile ' + orient + (extra ? ' ' + extra : '') + '" data-id="' + t.id + '">'
-    + halfHTML(t.a) + halfHTML(t.b) + '</div>';
+  for (const p of orden) {
+    s += '<div class="fila' + (p === orden[0] ? ' lider' : '') + '">'
+      + '<span class="nm">' + nom[p] + '</span>'
+      + '<span class="dl">' + (delta[p] >= 0 ? '+' : '') + delta[p] + '</span>'
+      + '<span class="tt">' + totales[p] + '</span></div>';
+  }
+  return s;
 }
 
-/* =====================================================================
-   PANTALLAS
-   ===================================================================== */
-function show(id) {
+function finRonda(quien, como) {
+  bloqueo = true;
+  const mis = miMano().reduce((s, t) => s + t.a + t.b, 0);
+  const sus = manoIA.reduce((s, t) => s + t.a + t.b, 0);
+  const delta = [quien === 0 ? -5 : mis, quien === 1 ? -5 : sus];
+  totales[0] += delta[0];
+  totales[1] += delta[1];
+  $('m-tu').textContent = totales[0];
+  $('m-ia').textContent = totales[1];
+
+  const acabada = totales[0] >= limite || totales[1] >= limite;
+  if (acabada) {
+    const campeon = totales[0] <= totales[1] ? 0 : 1;
+    const perdedor = 1 - campeon;
+    $('f-t').innerHTML = campeon === 0 ? '<em>Ganas la partida</em>' : '<em>Gana Iris</em>';
+    $('f-s').textContent = campeon === 0
+      ? 'Iris llega a ' + totales[1] + ' · ganas con ' + totales[0]
+      : 'llegas a ' + totales[0] + ' · Iris gana con ' + totales[1];
+    $('f-tabla').innerHTML = tablaHTML(delta);
+    $('ov-fin').classList.add('visible');
+    (campeon === 0 ? sGana : sPierde)();
+  } else {
+    $('r-t').innerHTML = quien === 0 ? '<em>Ronda tuya</em>' : '<em>Ronda de Iris</em>';
+    $('r-s').textContent = (como === 'dominó' ? 'dominó' : 'cierre') + ' · ronda ' + ronda + ' · a ' + limite;
+    $('r-tabla').innerHTML = tablaHTML(delta);
+    $('ov-ronda').classList.add('visible');
+    (quien === 0 ? sGana : sPierde)();
+  }
+}
+
+/* ============================================================ pantallas */
+function ir(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('visible'));
   $(id).classList.add('visible');
   document.body.classList.toggle('in-game', id === 'screen-game');
 }
 
-/* =====================================================================
-   PARTIDA
-   ===================================================================== */
-function newMatch() {
-  totals = new Array(nPlayers).fill(0);
-  round = 0;
-  starter = -1;
-  nextRound();
+function arrancarRonda() {
+  ronda++;
+  cerrarCarteles();
+  requestAnimationFrame(() => requestAnimationFrame(nuevaRonda));
 }
 
-function nextRound() {
-  round++;
-  const deck = shuffle(makeSet());
-  const per = nPlayers === 4 ? 6 : 7;
-  hands = [];
-  for (let p = 0; p < nPlayers; p++) hands.push(deck.splice(0, per));
-  pozo = deck;
-  chain = [];
-  ends = null;
-  passes = 0;
-  roundOver = false;
-  selected = null;
-  busy = false;
-
-  if (starter < 0 || starter === null) starter = findStarter();
-  turn = starter;
-  lastPlayer = starter;
-
-  show('screen-game');
-  render();
-  if (turn !== 0) scheduleAI();
+function nuevaPartida() {
+  totales = [0, 0]; ronda = 0;
+  $('m-tu').textContent = 0; $('m-ia').textContent = 0;
+  ir('screen-game');
+  arrancarRonda();
 }
 
-// Quien tenga el doble más alto; si nadie tiene doble, la ficha más alta.
-function findStarter() {
-  let best = -1, bestP = 0;
-  for (let p = 0; p < nPlayers; p++) {
-    for (const t of hands[p]) {
-      if (t.a === t.b) {
-        const v = 100 + t.a;
-        if (v > best) { best = v; bestP = p; }
-      }
-    }
-  }
-  if (best >= 0) return bestP;
-  for (let p = 0; p < nPlayers; p++) {
-    for (const t of hands[p]) {
-      const v = t.a + t.b;
-      if (v > best) { best = v; bestP = p; }
-    }
-  }
-  return bestP;
-}
-
-function playTile(p, tileId, side, pl, prefer) {
-  const idx = hands[p].findIndex(t => t.id === tileId);
-  if (idx < 0) return false;
-  const t = hands[p][idx];
-  if (!chain.length) {
-    side = 'R';
-    if (!pl) pl = { cx: 0, cy: 0, rot: 0 };
-  } else {
-    if (side === 'L' ? !fitsL(t) : !fitsR(t)) return false;
-    if (!pl) { const s = sitioAuto(side); pl = s.pl; prefer = s.prefer; }
-  }
-  const nuevo = armar(t, side, pl, prefer);
-  if (chain.length && side === 'L') chain.unshift(nuevo); else chain.push(nuevo);
-  hands[p].splice(idx, 1);
-  lastPlayer = p;
-  passes = 0;
-  selected = null;
-  beep(220 + Math.random() * 40, 0.05);
-  return true;
-}
-
-function advanceTurn() {
-  turn = (turn + 1) % nPlayers;
-}
-
-function checkRoundEnd() {
-  // dominó
-  for (let p = 0; p < nPlayers; p++) {
-    if (hands[p].length === 0) { endRound(p, 'domino'); return true; }
-  }
-  // cierre: nadie puede jugar y el pozo está vacío
-  if (pozo.length === 0) {
-    let anyone = false;
-    for (let p = 0; p < nPlayers; p++) if (hasMove(p)) { anyone = true; break; }
-    if (!anyone) { endRound(lowestHand(), 'cierre'); return true; }
-  }
-  return false;
-}
-
-function lowestHand() {
-  let best = Infinity, bestP = lastPlayer;
-  const order = [];
-  for (let i = 0; i < nPlayers; i++) order.push((lastPlayer + i) % nPlayers);
-  for (const p of order) {
-    const v = pipsOf(hands[p]);
-    if (v < best) { best = v; bestP = p; }
-  }
-  return bestP;
-}
-
-function endRound(winner, how) {
-  roundOver = true;
-  busy = true;
-  const deltas = new Array(nPlayers).fill(0);
-  for (let p = 0; p < nPlayers; p++) {
-    deltas[p] = (p === winner) ? -5 : pipsOf(hands[p]);
-    totals[p] += deltas[p];
-  }
-  starter = winner;
-  render();
-  setTimeout(() => showRoundSummary(winner, how, deltas), 650);
-}
-
-function showRoundSummary(winner, how, deltas) {
-  let last = false;
-  for (let p = 0; p < nPlayers; p++) if (totals[p] >= limit) last = true;
-  const ov = last ? $('end-overlay') : $('round-overlay');
-  const titleEl = last ? $('end-title') : $('rnd-title');
-  const subEl = last ? $('end-sub') : $('rnd-sub');
-  const tableEl = last ? $('end-table') : $('rnd-table');
-
-  if (last) {
-    let best = Infinity, champ = 0;
-    for (let p = 0; p < nPlayers; p++) if (totals[p] < best) { best = totals[p]; champ = p; }
-    titleEl.innerHTML = champ === 0 ? '<em>Ganas</em>' : '<em>Gana ' + NAMES[champ] + '</em>';
-    let peor = -Infinity, pierde = 0;
-    for (let p = 0; p < nPlayers; p++) if (totals[p] > peor) { peor = totals[p]; pierde = p; }
-    subEl.textContent = NAMES[pierde] + ' llega a ' + peor + ' · ganas con ' + best;
-  } else {
-    titleEl.innerHTML = winner === 0 ? '<em>Ronda tuya</em>' : '<em>Ronda de ' + NAMES[winner] + '</em>';
-    subEl.textContent = (how === 'domino' ? 'dominó' : 'cierre') + ' · ronda ' + round;
-  }
-
-  const order = [];
-  for (let p = 0; p < nPlayers; p++) order.push(p);
-  order.sort((x, y) => totals[x] - totals[y]);
-  let html = '';
-  for (const p of order) {
-    const d = deltas[p];
-    html += '<div class="score-row' + (p === order[0] ? ' lead' : '') + '">'
-      + '<span class="nm">' + NAMES[p] + '</span>'
-      + '<span class="dl">' + (d >= 0 ? '+' : '') + d + '</span>'
-      + '<span class="tt">' + totals[p] + '</span>'
-      + '</div>';
-  }
-  tableEl.innerHTML = html;
-  ov.classList.add('visible');
-}
-
-/* =====================================================================
-   IA
-   ===================================================================== */
-function scheduleAI() {
-  if (roundOver) return;
-  busy = true;
-  render();
-  setTimeout(aiTurn, 750 + Math.random() * 500);
-}
-
-function aiTurn() {
-  if (roundOver) return;
-  const p = turn;
-
-  // robar mientras no pueda y quede pozo
-  while (!hasMove(p) && pozo.length > 0) {
-    hands[p].push(pozo.pop());
-  }
-
-  if (!hasMove(p)) {
-    passes++;
-    render();
-    if (checkRoundEnd()) return;
-    advanceTurn();
-    afterTurn();
-    return;
-  }
-
-  const mv = bestMove(p);
-  playTile(p, mv.id, mv.side);
-  render();
-  if (checkRoundEnd()) return;
-  advanceTurn();
-  afterTurn();
-}
-
-function afterTurn() {
-  if (roundOver) return;
-  if (turn === 0) {
-    busy = false;
-    render();
-    autoHelpHuman();
-  } else {
-    scheduleAI();
-  }
-}
-
-// Heurística: soltar puntos, priorizar dobles, y dejar en los extremos
-// palos de los que aún tengo fichas.
-function bestMove(p) {
-  const hand = hands[p];
-  const opts = [];
-  for (const t of hand) {
-    if (!chain.length) { opts.push({ id: t.id, side: 'R', t }); continue; }
-    if (fitsL(t)) opts.push({ id: t.id, side: 'L', t });
-    if (fitsR(t)) opts.push({ id: t.id, side: 'R', t });
-  }
-  let best = null, bestScore = -Infinity;
-  for (const o of opts) {
-    const t = o.t;
-    let sc = (t.a + t.b) * 1.0;
-    if (t.a === t.b) sc += 4;
-    // simular extremos resultantes
-    let L, R;
-    if (!chain.length) { L = t.a; R = t.b; }
-    else if (o.side === 'L') { const e = leftEnd(); L = (t.b === e) ? t.a : t.b; R = rightEnd(); }
-    else { const e = rightEnd(); R = (t.a === e) ? t.b : t.a; L = leftEnd(); }
-    const rest = hand.filter(x => x.id !== t.id);
-    const count = v => rest.filter(x => x.a === v || x.b === v).length;
-    sc += count(L) * 2.2 + count(R) * 2.2;
-    if (L === R) sc -= 1.5;   // extremos iguales: más fácil bloquearme
-    sc += Math.random() * 1.2;
-    if (sc > bestScore) { bestScore = sc; best = o; }
-  }
-  return best;
-}
-
-/* =====================================================================
-   TURNO HUMANO
-   ===================================================================== */
-function autoHelpHuman() {
-  if (roundOver || turn !== 0) return;
-  const can = hasMove(0);
-  $('btn-draw').style.display = (!can && pozo.length > 0) ? '' : 'none';
-  $('btn-pass').style.display = (!can && pozo.length === 0) ? '' : 'none';
-}
-
-function humanDraw() {
-  if (busy || turn !== 0 || roundOver) return;
-  if (!pozo.length || hasMove(0)) return;
-  const t = pozo.pop();
-  hands[0].push(t);
-  beep(320, 0.04);
-  render(t.id);
-  autoHelpHuman();
-}
-
-function humanPass() {
-  if (busy || turn !== 0 || roundOver) return;
-  if (hasMove(0) || pozo.length > 0) return;
-  passes++;
-  if (checkRoundEnd()) return;
-  advanceTurn();
-  render();
-  afterTurn();
-}
-
-function selectTile(id) {
-  if (busy || turn !== 0 || roundOver) return;
-  const t = hands[0].find(x => x.id === id);
-  if (!t || !canPlay(t)) return;
-  if (selected === id) { selected = null; render(); return; }
-  selected = id;
-  const L = fitsL(t), R = fitsR(t);
-  // si solo encaja por un lado, se juega directo
-  if (!chain.length) { doHumanPlay('R'); return; }
-  if (L && !R) { doHumanPlay('L'); return; }
-  if (R && !L) { doHumanPlay('R'); return; }
-  render();
-}
-
-function doHumanPlay(side) {
-  if (!selected) return;
-  const id = selected;
-  selected = null;
-  if (!playTile(0, id, side)) { render(); return; }
-  render();
-  if (checkRoundEnd()) return;
-  advanceTurn();
-  afterTurn();
-}
-
-/* =====================================================================
-   RENDER
-   ===================================================================== */
-function render(freshId) {
-  // marcadores
-  let sb = '';
-  for (let p = 0; p < nPlayers; p++) {
-    sb += '<div class="stat-chip' + (p === turn && !roundOver ? ' active' : '') + '">'
-      + '<div class="cn">' + NAMES[p] + '</div>'
-      + '<div class="cv">' + totals[p] + '</div>'
-      + '<div class="cl">' + hands[p].length + (hands[p].length === 1 ? ' ficha' : ' fichas') + '</div>'
-      + '</div>';
-  }
-  $('status-bar').innerHTML = sb;
-
-  $('round-line').textContent = 'ronda ' + round + ' · a ' + limit + ' · pozo ' + pozo.length;
-
-  const tl = $('turn-line');
-  if (roundOver) tl.innerHTML = '';
-  else if (turn !== 0) tl.innerHTML = '<span class="thinking">' + NAMES[turn] + ' piensa<span class="dots"></span></span>';
-  else if (!hasMove(0)) tl.innerHTML = pozo.length ? 'no puedes casar · <b>roba</b>' : 'no puedes casar · <b>pasa</b>';
-  else if (selected) tl.innerHTML = 'elige <b>extremo</b>';
-  else tl.innerHTML = 'tu turno · <b>arrastra una ficha</b>';
-
-  // cadena
-  renderChain();
-
-  // extremos
-  const selT = selected ? hands[0].find(x => x.id === selected) : null;
-  const bl = $('end-L'), br = $('end-R');
-  $('end-L-v').textContent = chain.length ? leftEnd() : '—';
-  $('end-R-v').textContent = chain.length ? rightEnd() : '—';
-  const liveL = !!(selT && chain.length && fitsL(selT));
-  const liveR = !!(selT && chain.length && fitsR(selT));
-  bl.classList.toggle('live', liveL); br.classList.toggle('live', liveR);
-  bl.disabled = !liveL; br.disabled = !liveR;
-
-  // mano
-  const hd = $('hand');
-  let hs = '';
-  for (const t of hands[0]) {
-    const dead = (turn === 0 && !roundOver && !canPlay(t)) ? 'dead' : '';
-    const sel = (selected === t.id) ? 'sel' : '';
-    const fresh = (freshId === t.id) ? 'fresh' : '';
-    hs += tileHTML(t, 'v', [dead, sel, fresh].filter(Boolean).join(' '));
-  }
-  hd.innerHTML = hs;
-  hd.querySelectorAll('.tile').forEach(el => {
-    el.addEventListener('pointerdown', dragStart);
-  });
-
-  // botones
-  $('btn-draw').style.display = (!busy && !roundOver && turn === 0 && !hasMove(0) && pozo.length > 0) ? '' : 'none';
-  $('btn-pass').style.display = (!busy && !roundOver && turn === 0 && !hasMove(0) && pozo.length === 0) ? '' : 'none';
-}
-
-// Trazado real de mesa: la ficha de salida se ancla en el centro y la cadena
-// avanza en 4 direcciones. Al llegar al borde gira 90 grados: la ficha del
-// codo se coloca perpendicular, la cadena baja (rama derecha) o sube (rama
-// izquierda) y sigue en sentido contrario.
-// =====================================================================
-//   MESA LIBRE
-//   Cada ficha guarda su sitio (cx, cy) y su giro (0/90/180/270) en
-//   unidades de mesa. No hay algoritmo de trazado: la posicion la decide
-//   quien juega. La vista se encoge sola para que todo quepa.
-// =====================================================================
-const UU = 44;                 // media ficha en unidades de mesa
-const DIRV = { 0: [1, 0], 90: [0, 1], 180: [-1, 0], 270: [0, -1] };
-const LIMX = 8 * UU;           // hasta donde tira la CPU antes de girar
-const MAX_MEDIA = 34;          // media ficha, en px, como maximo en pantalla
-
-let ends = null;               // { L:{x,y,dx,dy}, R:{...} } puntos de enganche
-let vista = { s: 1, ox: 0, oy: 0 };   // escala y desplazamiento de la vista
-
-function dirOf(rot) { return DIRV[((rot % 360) + 360) % 360]; }
-
-function rectOf(pl) {
-  const d = dirOf(pl.rot);
-  const horiz = d[1] === 0;
-  const w = horiz ? 2 * UU : UU;
-  const hh = horiz ? UU : 2 * UU;
-  return { x: pl.cx - w / 2, y: pl.cy - hh / 2, w: w, h: hh };
-}
-
-// Coloca la ficha t por el lado 'side' en la posicion dada (o automatica).
-// Devuelve el objeto de cadena ya con su sitio y sus dos mitades ordenadas.
-function mitadesDe(t, side, pl, prefer) {
-  if (!ends) return { v1: t.a, v2: t.b, fuera: 1, la: t.a, lb: t.b };
-  const d = dirOf(pl.rot);
-  const h1 = { x: pl.cx - d[0] * UU / 2, y: pl.cy - d[1] * UU / 2 };
-  const h2 = { x: pl.cx + d[0] * UU / 2, y: pl.cy + d[1] * UU / 2 };
-  const E = ends[side];
-  const val = side === 'L' ? leftEnd() : rightEnd();
-  const d1 = Math.hypot(h1.x - E.x, h1.y - E.y);
-  const d2 = Math.hypot(h2.x - E.x, h2.y - E.y);
-  let pegaPrimera;
-  if (Math.abs(d1 - d2) < 2 && prefer) {
-    // ficha cruzada: las dos mitades estan a la misma distancia del extremo
-    pegaPrimera = (d[0] * prefer[0] + d[1] * prefer[1]) > 0;
-  } else {
-    pegaPrimera = d1 <= d2;
-  }
-  const otro = (t.a === val) ? t.b : t.a;
-  // orden logico de la cadena: por la derecha casa la 'a', por la izquierda la 'b'
-  const la = side === 'R' ? val : otro;
-  const lb = side === 'R' ? otro : val;
-  if (pegaPrimera) return { v1: val, v2: otro, fuera: 1, la: la, lb: lb };
-  return { v1: otro, v2: val, fuera: -1, la: la, lb: lb };
-}
-
-function armar(t, side, pl, prefer) {
-  const vacio = !ends;
-  const d = dirOf(pl.rot);
-  const m = mitadesDe(t, side, pl, prefer);
-  const v1 = m.v1, v2 = m.v2, fuera = m.fuera;
-
-  const nuevo = { a: m.la, b: m.lb, id: t.id, cx: pl.cx, cy: pl.cy, rot: pl.rot, v1: v1, v2: v2 };
-  const salida = { x: pl.cx + fuera * d[0] * UU, y: pl.cy + fuera * d[1] * UU, dx: fuera * d[0], dy: fuera * d[1] };
-
-  if (vacio) {
-    ends = {
-      R: salida,
-      L: { x: pl.cx - d[0] * UU, y: pl.cy - d[1] * UU, dx: -d[0], dy: -d[1] }
-    };
-  } else {
-    ends[side] = salida;
-  }
-  return nuevo;
-}
-
-// Sitio automatico para un extremo (lo usa la CPU y los botones IZQ/DER).
-function sitioAuto(side) {
-  const E = ends[side];
-  const horiz = E.dy === 0;
-  const lejos = horiz && Math.abs(E.x) > LIMX;
-  const giro = side === 'R' ? [0, 1] : [0, -1];
-  if (lejos || !horiz) {
-    // cruzada: gira 90 grados
-    const rot = horiz ? 90 : 0;
-    return { pl: { cx: E.x + E.dx * UU / 2, cy: E.y + E.dy * UU / 2, rot: rot }, prefer: horiz ? giro : [-Math.sign(E.x) || 1, 0] };
-  }
-  const rot = E.dx === 1 ? 0 : E.dx === -1 ? 180 : E.dy === 1 ? 90 : 270;
-  return { pl: { cx: E.x + E.dx * UU, cy: E.y + E.dy * UU, rot: rot }, prefer: null };
-}
-
-// Hueco donde caeria la siguiente ficha, para pintarlo y para el iman.
-function huecoDe(side, rot) {
-  const E = ends[side];
-  const d = dirOf(rot);
-  const par = Math.abs(d[0] * E.dx + d[1] * E.dy) === 1;
-  const k = par ? UU : UU / 2;
-  return { cx: E.x + E.dx * k, cy: E.y + E.dy * k, rot: rot };
-}
-
-/* ---------------------------------------------------------------- render */
-function renderChain() {
-  const mesa = $('mesa');
-  if (!mesa) return;
-  const W = mesa.clientWidth - 20, H = mesa.clientHeight - 20;
-  if (W <= 0 || H <= 0) { requestAnimationFrame(renderChain); return; }
-
-  if (!chain.length) {
-    vista = { s: Math.min(MAX_MEDIA, Math.floor(W / 6)) / UU, ox: W / 2, oy: H / 2 };
-    mesa.innerHTML = '<div class="chain-abs">' + huecosHTML() + '</div>';
-    return;
-  }
-
-  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
-  const meter = r => {
-    if (r.x < x0) x0 = r.x; if (r.x + r.w > x1) x1 = r.x + r.w;
-    if (r.y < y0) y0 = r.y; if (r.y + r.h > y1) y1 = r.y + r.h;
-  };
-  for (const c of chain) meter(rectOf(c));
-  if (ends) for (const s of ['L', 'R']) meter(rectOf(huecoDe(s, ends[s].dy === 0 ? 0 : 90)));
-
-  const bw = Math.max(1, x1 - x0), bh = Math.max(1, y1 - y0);
-  const s = Math.min(W / bw, H / bh, MAX_MEDIA / UU);
-  vista = { s: s, ox: (W - bw * s) / 2 - x0 * s, oy: (H - bh * s) / 2 - y0 * s };
-
-  let out = '<div class="chain-abs">';
-  for (const c of chain) out += fichaHTML(c);
-  out += huecosHTML();
-  out += '</div>';
-  mesa.innerHTML = out;
-}
-
-function aPantalla(cx, cy) { return { x: cx * vista.s + vista.ox, y: cy * vista.s + vista.oy }; }
-function aMesa(px, py) { return { x: (px - vista.ox) / vista.s, y: (py - vista.oy) / vista.s }; }
-
-function fichaHTML(c) {
-  const r = rectOf(c), d = dirOf(c.rot);
-  const horiz = d[1] === 0;
-  const inv = (c.rot === 180 || c.rot === 270);
-  const A = inv ? c.v2 : c.v1, B = inv ? c.v1 : c.v2;
-  const p = aPantalla(r.x + r.w / 2, r.y + r.h / 2);
-  const w = r.w * vista.s, hh = r.h * vista.s;
-  return '<div class="tile ' + (horiz ? 'h' : 'v') + '" style="left:' + Math.round(p.x - w / 2)
-    + 'px;top:' + Math.round(p.y - hh / 2) + 'px;width:' + Math.round(w) + 'px;height:'
-    + Math.round(hh) + 'px">' + halfHTML(A) + halfHTML(B) + '</div>';
-}
-
-function huecosHTML() {
-  if (busy || roundOver || turn !== 0) return '';
-  let out = '';
-  if (!chain.length) {
-    const w = 2 * UU * vista.s, hh = UU * vista.s;
-    out += '<div class="slot" data-side="R" style="left:' + Math.round(vista.ox - w / 2) + 'px;top:'
-      + Math.round(vista.oy - hh / 2) + 'px;width:' + Math.round(w) + 'px;height:' + Math.round(hh) + 'px"></div>';
-    return out;
-  }
-  for (const side of ['L', 'R']) {
-    if (!hands[0].some(t => side === 'L' ? fitsL(t) : fitsR(t))) continue;
-    const E = ends[side];
-    const pl = huecoDe(side, E.dy === 0 ? 0 : 90);
-    const r = rectOf(pl);
-    const p = aPantalla(r.x + r.w / 2, r.y + r.h / 2);
-    const w = r.w * vista.s, hh = r.h * vista.s;
-    out += '<div class="slot" data-side="' + side + '" style="left:' + Math.round(p.x - w / 2) + 'px;top:'
-      + Math.round(p.y - hh / 2) + 'px;width:' + Math.round(w) + 'px;height:' + Math.round(hh) + 'px"></div>';
-  }
-  return out;
-}
-
-/* =====================================================================
-   ARRASTRE LIBRE · un dedo mueve, dos dedos giran
-   ===================================================================== */
-let drag = null;
-const punteros = new Map();
-const IMAN = 1.4;          // radio de captura, en medias fichas
-
-function ladosValidos(t) {
-  if (!chain.length) return ['R'];
-  const r = [];
-  if (fitsL(t)) r.push('L');
-  if (fitsR(t)) r.push('R');
-  return r;
-}
-
-function dragStart(e) {
-  if (busy || turn !== 0 || roundOver) return;
-  const el = e.currentTarget;
-  const t = hands[0].find(x => x.id === el.dataset.id);
-  if (!t || !canPlay(t)) return;
-  punteros.set(e.pointerId, { x: e.clientX, y: e.clientY });
-  if (drag) return;
-  drag = { t: t, el: el, rot: 90, x0: e.clientX, y0: e.clientY, moved: false,
-           side: null, pl: null, rotBase: null, rotIni: 90 };
-  window.addEventListener('pointerdown', gDown, true);
-  window.addEventListener('pointermove', gMove, true);
-  window.addEventListener('pointerup', gUp, true);
-  window.addEventListener('pointercancel', gUp, true);
-}
-
-function gDown(e) { if (drag) punteros.set(e.pointerId, { x: e.clientX, y: e.clientY }); }
-
-function gMove(e) {
-  if (!drag) return;
-  punteros.set(e.pointerId, { x: e.clientX, y: e.clientY });
-  if (!drag.moved) {
-    if (Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 8) return;
-    drag.moved = true;
-    drag.el.classList.add('dragging');
-    const g = document.createElement('div');
-    g.id = 'ghost';
-    document.body.appendChild(g);
-  }
-  const ps = Array.from(punteros.values());
-  if (ps.length >= 2) {
-    const ang = Math.atan2(ps[1].y - ps[0].y, ps[1].x - ps[0].x) * 180 / Math.PI;
-    if (drag.rotBase === null) { drag.rotBase = ang; drag.rotIni = drag.rot; }
-    const nueva = ((drag.rotIni + Math.round((ang - drag.rotBase) / 90) * 90) % 360 + 360) % 360;
-    if (nueva !== drag.rot) { drag.rot = nueva; beep(660, 0.03); }
-  } else {
-    drag.rotBase = null;
-  }
-  let px = 0, py = 0;
-  for (const q of ps) { px += q.x; py += q.y; }
-  px /= ps.length; py /= ps.length;
-  if (ps.length < 2) py -= 54;      // que no la tape el dedo
-  pintarFantasma(px, py);
-  e.preventDefault();
-}
-
-function gUp(e) {
-  punteros.delete(e.pointerId);
-  if (!drag || punteros.size > 0) return;
-  const d = drag;
-  drag = null;
-  window.removeEventListener('pointerdown', gDown, true);
-  window.removeEventListener('pointermove', gMove, true);
-  window.removeEventListener('pointerup', gUp, true);
-  window.removeEventListener('pointercancel', gUp, true);
-  const g = $('ghost'); if (g) g.remove();
-  if (d.el) d.el.classList.remove('dragging');
-  if (!d.moved) { selectTile(d.t.id); return; }
-  if (!d.pl || !d.side) { render(); return; }
-  if (!playTile(0, d.t.id, d.side, d.pl, d.prefer)) { render(); return; }
-  render();
-  if (checkRoundEnd()) return;
-  advanceTurn();
-  afterTurn();
-}
-
-function pintarFantasma(px, py) {
-  const g = $('ghost');
-  const cont = document.querySelector('#mesa .chain-abs');
-  if (!g || !cont) return;
-  const r = cont.getBoundingClientRect();
-  const libre = aMesa(px - r.left, py - r.top);
-
-  // imán: el hueco compatible más cercano
-  let mejor = null, mejorD = IMAN * UU;
-  for (const side of ladosValidos(drag.t)) {
-    const hu = chain.length ? huecoDe(side, drag.rot) : { cx: 0, cy: 0, rot: drag.rot };
-    const dist = Math.hypot(libre.x - hu.cx, libre.y - hu.cy);
-    if (dist < mejorD) { mejorD = dist; mejor = { side: side, pl: hu }; }
-  }
-
-  let pl, side, prefer = null;
-  if (mejor) {
-    pl = mejor.pl; side = mejor.side;
-    if (chain.length) {
-      const E = ends[side];
-      prefer = [E.dx, E.dy];
-    }
-    if (drag.side !== side || !drag.pegado) beep(520, 0.03);
-    drag.pegado = true;
-  } else {
-    pl = { cx: libre.x, cy: libre.y, rot: drag.rot };
-    side = chain.length ? ladoMasCerca(libre) : 'R';
-    drag.pegado = false;
-  }
-  drag.pl = pl; drag.side = side; drag.prefer = prefer;
-
-  document.querySelectorAll('.slot').forEach(s => {
-    s.classList.toggle('live', ladosValidos(drag.t).indexOf(s.dataset.side) >= 0);
-    s.classList.toggle('magnet', !!mejor && s.dataset.side === mejor.side);
-  });
-
-  const m = chain.length ? mitadesDe(drag.t, side, pl, prefer)
-                         : { v1: drag.t.a, v2: drag.t.b };
-  const dv = dirOf(pl.rot), horiz = dv[1] === 0;
-  const inv = (pl.rot === 180 || pl.rot === 270);
-  const A = inv ? m.v2 : m.v1, B = inv ? m.v1 : m.v2;
-  const w = (horiz ? 2 * UU : UU) * vista.s;
-  const hh = (horiz ? UU : 2 * UU) * vista.s;
-  const p = aPantalla(pl.cx, pl.cy);
-  g.className = 'tile ' + (horiz ? 'h' : 'v') + (mejor ? ' snapped' : '');
-  g.style.width = Math.round(w) + 'px';
-  g.style.height = Math.round(hh) + 'px';
-  g.style.left = Math.round(r.left + p.x - w / 2) + 'px';
-  g.style.top = Math.round(r.top + p.y - hh / 2) + 'px';
-  g.innerHTML = halfHTML(A) + halfHTML(B);
-}
-
-function ladoMasCerca(pt) {
-  const lados = ladosValidos(drag.t);
-  if (lados.length === 1) return lados[0];
-  let mejor = lados[0], mejorD = Infinity;
-  for (const s of lados) {
-    const E = ends[s];
-    const dd = Math.hypot(pt.x - E.x, pt.y - E.y);
-    if (dd < mejorD) { mejorD = dd; mejor = s; }
-  }
-  return mejor;
-}
-
-/* =====================================================================
-   SONIDO (sintético, sin assets)
-   ===================================================================== */
-let actx = null;
-function beep(freq, dur) {
-  if (!sound) return;
-  try {
-    if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
-    const o = actx.createOscillator(), g = actx.createGain();
-    o.type = 'triangle'; o.frequency.value = freq;
-    g.gain.setValueAtTime(0.09, actx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + dur);
-    o.connect(g); g.connect(actx.destination);
-    o.start(); o.stop(actx.currentTime + dur);
-  } catch (e) {}
-}
-
-/* =====================================================================
-   EVENTOS
-   ===================================================================== */
-$('btn-play').addEventListener('click', () => show('screen-setup'));
-$('btn-setup-back').addEventListener('click', () => show('screen-home'));
-
-$('players-cards').addEventListener('click', e => {
+$('btn-jugar').addEventListener('click', () => ir('screen-setup'));
+$('btn-volver').addEventListener('click', () => ir('screen-home'));
+$('limite-cards').addEventListener('click', e => {
   const c = e.target.closest('.card'); if (!c) return;
-  $('players-cards').querySelectorAll('.card').forEach(x => x.classList.remove('selected'));
+  $('limite-cards').querySelectorAll('.card').forEach(x => x.classList.remove('selected'));
   c.classList.add('selected');
-  nPlayers = +c.dataset.players;
+  limite = +c.dataset.limite;
 });
-$('limit-cards').addEventListener('click', e => {
-  const c = e.target.closest('.card'); if (!c) return;
-  $('limit-cards').querySelectorAll('.card').forEach(x => x.classList.remove('selected'));
-  c.classList.add('selected');
-  limit = +c.dataset.limit;
-});
+$('btn-empezar').addEventListener('click', nuevaPartida);
+$('btn-siguiente').addEventListener('click', arrancarRonda);
+$('btn-revancha').addEventListener('click', nuevaPartida);
+$('btn-menu').addEventListener('click', () => { cerrarCarteles(); ir('screen-home'); });
+$('salir').addEventListener('click', () => { bloqueo = true; cerrarCarteles(); ir('screen-home'); });
 
-$('btn-start').addEventListener('click', () => { newMatch(); });
-$('btn-draw').addEventListener('click', humanDraw);
-$('btn-pass').addEventListener('click', humanPass);
-$('btn-menu').addEventListener('click', () => { roundOver = true; show('screen-home'); });
-$('end-L').addEventListener('click', () => doHumanPlay('L'));
-$('end-R').addEventListener('click', () => doHumanPlay('R'));
-
-$('btn-next-round').addEventListener('click', () => {
-  $('round-overlay').classList.remove('visible');
-  nextRound();
-});
-$('btn-rematch').addEventListener('click', () => {
-  $('end-overlay').classList.remove('visible');
-  newMatch();
-});
-$('btn-end-menu').addEventListener('click', () => {
-  $('end-overlay').classList.remove('visible');
-  show('screen-home');
-});
-
-let rzT = null;
-window.addEventListener('resize', () => {
-  clearTimeout(rzT);
-  rzT = setTimeout(() => { if ($('screen-game').classList.contains('visible')) renderChain(); }, 120);
-});
-
-$('help-btn').addEventListener('click', () => $('tutorial-overlay').classList.add('visible'));
-$('tut-close').addEventListener('click', () => $('tutorial-overlay').classList.remove('visible'));
-
+$('help-btn').addEventListener('click', () => $('tutorial').classList.add('visible'));
+$('tut-cerrar').addEventListener('click', () => $('tutorial').classList.remove('visible'));
 $('theme-toggle').addEventListener('click', () => {
-  const light = document.body.classList.toggle('light');
+  const l = document.body.classList.toggle('light');
   document.documentElement.classList.remove('pre-light');
-  try { localStorage.setItem('onix_theme', light ? 'light' : 'dark'); } catch (e) {}
+  try { localStorage.setItem('onix_theme', l ? 'light' : 'dark'); } catch (e) {}
 });
 $('sound-toggle').addEventListener('click', () => {
-  sound = !sound;
-  $('sound-toggle').classList.toggle('muted', !sound);
-  try { localStorage.setItem('onix_sound', sound ? '1' : '0'); } catch (e) {}
+  sonido = !sonido;
+  $('sound-toggle').classList.toggle('muted', !sonido);
+  try { localStorage.setItem('onix_sonido', sonido ? '1' : '0'); } catch (e) {}
 });
+window.addEventListener('resize', () => { if (!arrastre) { leerU(); arrancar(); } });
 
-/* ---------- init ---------- */
 (function init() {
-  const vt = $('ver-tag'); if (vt) vt.textContent = VERSION;
   try {
     if (localStorage.getItem('onix_theme') === 'light') document.body.classList.add('light');
-    if (localStorage.getItem('onix_sound') === '0') { sound = false; $('sound-toggle').classList.add('muted'); }
+    if (localStorage.getItem('onix_sonido') === '0') { sonido = false; $('sound-toggle').classList.add('muted'); }
   } catch (e) {}
   document.documentElement.classList.remove('pre-light');
+  $('ver-tag').textContent = VERSION;
   setTimeout(() => {
     const s = $('app-splash');
     if (s) { s.classList.add('hiding'); setTimeout(() => { s.style.display = 'none'; }, 700); }
   }, 1900);
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
-  }
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 })();
 </script>
 </body>

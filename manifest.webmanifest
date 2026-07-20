@@ -1,7 +1,7 @@
 {
   "name": "Ónix · Dominó",
   "short_name": "Ónix",
-  "description": "Dominó por rondas. 2 a 4 jugadores.",
+  "description": "Dominó sobre mesa libre. Coloca las fichas donde quieras.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
