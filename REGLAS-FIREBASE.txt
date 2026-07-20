@@ -1,0 +1,24 @@
+Reglas de Firebase Realtime Database para Ónix
+==============================================
+El comodín de la colección ya cubre /g/{juego}/rooms/{code}. Si tuvieras
+que ponerlas explícitas, estas son las mínimas para que las salas de Ónix
+funcionen (lectura y escritura abiertas dentro del nodo del juego):
+
+{
+  "rules": {
+    "g": {
+      "$juego": {
+        "rooms": {
+          "$code": {
+            ".read": true,
+            ".write": true
+          }
+        }
+      }
+    }
+  }
+}
+
+IMPORTANTE: la regla tiene que existir a la altura de $code, no solo en los
+nodos de dentro. Si solo está en los hijos, las escrituras que tocan varias
+ramas a la vez se rechazan en silencio.

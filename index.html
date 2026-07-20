@@ -173,7 +173,7 @@ body.light .card .name { color: var(--text); }
     radial-gradient(ellipse 70% 55% at 50% 34%, rgba(255,255,255,.07), transparent 70%),
     repeating-linear-gradient(58deg, rgba(255,255,255,.022) 0 2px, transparent 2px 4px),
     repeating-linear-gradient(-58deg, rgba(0,0,0,.05) 0 2px, transparent 2px 4px);
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,.05), inset 0 2px 10px rgba(0,0,0,.55), inset 0 -30px 60px rgba(0,0,0,.35);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.05), inset 0 2px 10px rgba(0,0,0,.55), inset 0 -20px 34px rgba(0,0,0,.20);
 }
 #mesa::before {
   content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 0;
@@ -276,8 +276,11 @@ body.light .card .name { color: var(--text); }
   <div class="seal"><svg style="color:var(--accent)"><use href="#ico-domino"/></svg></div>
   <div class="title"><em>Ó</em><span>nix</span></div>
   <div class="subtitle">dominó</div>
-  <div class="btn-row"><button class="btn" id="btn-jugar">Jugar</button></div>
-  <div class="ver-tag" id="ver-tag">v0.23.0</div>
+  <div class="btn-row">
+    <button class="btn" id="btn-jugar">Un jugador</button>
+    <button class="btn" id="btn-online">Multijugador</button>
+  </div>
+  <div class="ver-tag" id="ver-tag">v0.24.0</div>
 </div>
 
 <div id="screen-setup" class="screen">
@@ -296,6 +299,34 @@ body.light .card .name { color: var(--text); }
   </div>
   <div class="btn-row"><button class="btn" id="btn-empezar">Empezar</button></div>
   <div class="btn-row" style="margin-top:1.3rem"><button class="btn btn-sec" id="btn-volver">Volver</button></div>
+</div>
+
+<div id="screen-online" class="screen">
+  <div class="seal"><svg style="color:var(--accent)"><use href="#ico-domino"/></svg></div>
+  <div class="subtitle">jugar con un amigo</div>
+  <div class="btn-row">
+    <button class="btn" id="btn-crear">Crear sala</button>
+    <button class="btn" id="btn-unirse">Unirse</button>
+  </div>
+  <div id="union" style="display:none;margin-top:1.4rem">
+    <div class="section-label">código de la sala</div>
+    <input id="codigo-in" class="mono" maxlength="4" autocomplete="off" autocapitalize="characters"
+      placeholder="ABCD" style="width:170px;text-align:center;font-size:1.7rem;letter-spacing:.35em;
+      padding:.6rem;background:var(--panel);border:1px solid var(--line);border-radius:8px;color:var(--text);outline:none">
+    <div class="btn-row" style="margin-top:1rem"><button class="btn" id="btn-entrar">Entrar</button></div>
+  </div>
+  <div class="btn-row" style="margin-top:1.4rem"><button class="btn btn-sec" id="btn-online-volver">Volver</button></div>
+  <div class="ver-tag" id="online-aviso"></div>
+</div>
+
+<div id="screen-sala" class="screen">
+  <div class="seal"><svg style="color:var(--accent)"><use href="#ico-domino"/></svg></div>
+  <div class="subtitle">sala</div>
+  <div id="sala-codigo" class="mono" style="font-size:2.6rem;letter-spacing:.4em;margin-bottom:.3rem">····</div>
+  <div class="section-label" id="sala-estado">esperando</div>
+  <div class="tabla" id="sala-lista" style="max-width:260px;margin:1rem auto 1.6rem"></div>
+  <div class="btn-row"><button class="btn" id="btn-empezar-sala">Empezar</button></div>
+  <div class="btn-row" style="margin-top:1.2rem"><button class="btn btn-sec" id="btn-salir-sala">Salir</button></div>
 </div>
 
 <div id="screen-game" class="screen">
@@ -337,7 +368,7 @@ body.light .card .name { color: var(--text); }
 </div>
 <script>
 "use strict";
-const VERSION = 'v0.23.0';
+const VERSION = 'v0.24.0';
 const $ = id => document.getElementById(id);
 const PUNTOS = { 0:[], 1:[5], 2:[1,9], 3:[1,5,9], 4:[1,3,7,9], 5:[1,3,5,7,9], 6:[1,2,3,7,8,9] };
 const DIR = { 0:[1,0], 90:[0,1], 180:[-1,0], 270:[0,-1] };
@@ -362,6 +393,8 @@ let motivoCierre = '';
 const MAX_ROBOS = 2;
 let arrastre = null;
 let limite = 100;
+let yo = 0;             // qué jugador soy en la mesa (online puedo ser el 1)
+let online = false;
 let ronda = 0;
 let sonido = true;
 
@@ -605,7 +638,7 @@ function puedeJugar(mano) {
   return !!buscarEn(mano);
 }
 function miMano() { return fichas.filter(f => !f.fija); }
-function manoDe(p) { return p === 0 ? miMano() : manos[p]; }
+function manoDe(p) { return p === yo ? miMano() : manos[p]; }
 function equipo(p) { return p % 2; }
 function companero(p) { return (p + 2) % nJug; }
 
@@ -649,7 +682,7 @@ function nuevaRonda() {
 
   const w = mesa.clientWidth, h = mesa.clientHeight;
   $('raya-ia').style.top = Math.round(U * 3.2) + 'px';
-  $('raya-tu').style.top = Math.round(h - U * 3.2) + 'px';
+  $('raya-tu').style.top = Math.round(h - U * 3.7) + 'px';
 
   const mazo = baraja();
   manos = [[], [], [], []];
@@ -700,7 +733,7 @@ function crearFicha(a, b, x, y, rot) {
 function colocarMano(mano) {
   const w = mesa.clientWidth, h = mesa.clientHeight;
   const paso = Math.max(U*1.3, Math.min(U*2.3, (w - 20) / Math.max(1, mano.length)));
-  mano.forEach((t, i) => crearFicha(t.a, t.b, 10 + paso*i + paso/2, h - U*1.5, 90));
+  mano.forEach((t, i) => crearFicha(t.a, t.b, 10 + paso*i + paso/2, h - U*2.0, 90));
 }
 
 function pintarIA() {
@@ -726,7 +759,7 @@ function pintarPozo() {
   p.style.width = Math.round(U*1.15) + 'px'; p.style.height = Math.round(U*2.2) + 'px';
   p.style.left = Math.round(w - U*1.15 - 12) + 'px';
   p.style.top = Math.round(U*.5) + 'px';
-  const sePuedeRobar = turno === 0 && !bloqueo && pozo.length && robos < MAX_ROBOS && !puedeJugar(miMano());
+  const sePuedeRobar = turno === yo && !bloqueo && pozo.length && robos < MAX_ROBOS && !puedeJugar(miMano());
   p.className = 'dorso' + (sePuedeRobar ? ' activo' : '');
   p.id = 'pozo';
   p.innerHTML = '<div class="n">' + pozo.length + '</div>';
@@ -747,7 +780,7 @@ function pintarChips() {
 function cambioTurno() {
   robos = 0;
   pintarPozo(); pintarChips();
-  if (turno === 0) {
+  if (turno === yo) {
     $('m-turno').textContent = 'tu turno';
     sTurno();
     if (!puedeJugar(miMano())) {
@@ -756,13 +789,16 @@ function cambioTurno() {
         $('aviso').innerHTML = 'no casas · <b>roba</b> · te ' + (quedan === 1 ? 'queda 1' : 'quedan ' + quedan);
       } else {
         $('aviso').innerHTML = 'no casas · <b>pasas</b>';
-        pasar(0); return;
+        pasar(yo); return;
       }
     } else {
       $('aviso').innerHTML = 'arrastra una ficha a un <b>extremo</b>';
     }
+  } else if (online) {
+    $('m-turno').textContent = 'turno de ' + NOMBRES[turno].toLowerCase();
+    bloqueo = true;
   } else {
-    $('m-turno').textContent = 'iris piensa';
+    $('m-turno').textContent = NOMBRES[turno].toLowerCase() + ' piensa';
     bloqueo = true;
     setTimeout(turnoIA, 800 + Math.random()*500);
   }
@@ -771,7 +807,7 @@ function cambioTurno() {
 
 /* ---------------- tu jugada ---------------- */
 function intentar(f) {
-  if (turno !== 0 || bloqueo || f.fija) return;
+  if (turno !== yo || bloqueo || f.fija) return;
   const con = conexion(f);
   if (!con) {
     if (cerca(f)) $('aviso').innerHTML = 'ahí <b>no casa</b> · prueba otro extremo';
@@ -783,8 +819,9 @@ function intentar(f) {
   pases = 0;
   if (navigator.vibrate) navigator.vibrate([8, 30, 14]);
   arrancar();
-  if (miMano().length === 0) { bloqueo = true; setTimeout(() => finRonda(0, 'dominó'), 1000); return; }
-  turno = 1;
+  if (online) enviarJugada(f);
+  if (miMano().length === 0) { bloqueo = true; setTimeout(() => finRonda(equipo(yo), 'dominó'), 1000); return; }
+  turno = (yo + 1) % nJug;
   cambioTurno();
 }
 
@@ -796,7 +833,7 @@ function tocaPozo(cx, cy) {
 }
 
 function robar() {
-  if (turno !== 0 || bloqueo) { $('aviso').textContent = 'espera tu turno'; return; }
+  if (turno !== yo || bloqueo) { $('aviso').textContent = 'espera tu turno'; return; }
   if (!pozo.length) { $('aviso').innerHTML = 'el pozo está <b>vacío</b>'; return; }
   if (robos >= MAX_ROBOS) { $('aviso').innerHTML = 'ya has robado <b>2</b> este turno'; return; }
   const j = buscarEn(miMano());
@@ -817,7 +854,7 @@ function robar() {
     $('aviso').innerHTML = 'ya casas · arrastra a un <b>extremo</b>';
   } else if (robos >= MAX_ROBOS || !pozo.length) {
     $('aviso').innerHTML = 'sigues sin casar · <b>pasas</b>';
-    setTimeout(() => pasar(0), 800);
+    setTimeout(() => pasar(yo), 800);
   } else {
     $('aviso').innerHTML = 'no casas · <b>roba</b> · te queda ' + (MAX_ROBOS - robos);
   }
@@ -1002,7 +1039,7 @@ function alFrente(f) {
 function local(t) { const r = mesa.getBoundingClientRect(); return { x: t.clientX - r.left, y: t.clientY - r.top }; }
 
 function empezar(px, py, id) {
-  if (turno !== 0 || bloqueo) return false;
+  if (turno !== yo || bloqueo) return false;
   const f = fichaEn(px, py);
   if (!f) return false;
   alFrente(f);
@@ -1143,6 +1180,218 @@ function finRonda(ganador, como) {
   }
 }
 
+/* ============================================================ salas
+   Firebase Realtime Database por REST, sin SDK, igual que el resto de la
+   colección. Solo escribe quien tiene el turno, así que no hay carreras.
+   ============================================================ */
+const DB = 'https://subasta-de-tiempo-default-rtdb.europe-west1.firebasedatabase.app';
+const RUTA = c => DB + '/g/onix/rooms/' + c + '.json';
+let sala = null;          // código
+let soyAnfitrion = false;
+let sonda = null;         // temporizador de consulta
+let ultimoTs = 0;
+
+function codigoNuevo() {
+  const L = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  let s = '';
+  for (let i = 0; i < 4; i++) s += L[(Math.random()*L.length)|0];
+  return s;
+}
+async function leer(c) {
+  const r = await fetch(RUTA(c) + '?t=' + Date.now(), { cache: 'no-store' });
+  if (!r.ok) throw new Error('red');
+  return await r.json();
+}
+async function escribir(c, obj) {
+  const r = await fetch(RUTA(c), { method: 'PATCH', body: JSON.stringify(obj) });
+  if (!r.ok) throw new Error('red');
+}
+async function crearSala(c, obj) {
+  const r = await fetch(RUTA(c), { method: 'PUT', body: JSON.stringify(obj) });
+  if (!r.ok) throw new Error('red');
+}
+
+// Las coordenadas viajan medidas desde el centro de la mesa y en medias
+// fichas, para que valgan en pantallas de distinto tamaño.
+function aRed(f) {
+  return { a: f.a, b: f.b, rot: rotN(f.rot),
+           nx: +((f.x - mesa.clientWidth/2) / U).toFixed(3),
+           ny: +((f.y - mesa.clientHeight/2) / U).toFixed(3) };
+}
+function deRed(o) {
+  return { a: o.a, b: o.b, rot: o.rot,
+           x: mesa.clientWidth/2 + o.nx * U,
+           y: mesa.clientHeight/2 + o.ny * U };
+}
+
+function pintarSala(est) {
+  $('sala-codigo').textContent = sala;
+  const js = (est && est.jug) || {};
+  let s = '';
+  for (const k of ['0', '1']) {
+    const j = js[k];
+    s += '<div class="fila"><span class="nm">' + (k === '0' ? 'anfitrión' : 'invitado') + '</span>'
+      + '<span class="tt">' + (j ? (j.n || 'listo') : '—') + '</span></div>';
+  }
+  $('sala-lista').innerHTML = s;
+  const listos = js['0'] && js['1'];
+  $('sala-estado').textContent = listos ? 'listos para empezar' : 'esperando a tu amigo';
+  $('btn-empezar-sala').style.display = (soyAnfitrion && listos) ? '' : 'none';
+}
+
+async function accionCrear() {
+  const c = codigoNuevo();
+  try {
+    await crearSala(c, { estado: 'espera', jug: { 0: { n: 'anfitrión', ts: Date.now() } }, ts: Date.now() });
+  } catch (e) { $('online-aviso').textContent = 'sin conexión'; return; }
+  sala = c; soyAnfitrion = true; yo = 0;
+  ir('screen-sala'); pintarSala(null); vigilar();
+}
+
+async function accionEntrar() {
+  const c = ($('codigo-in').value || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4);
+  if (c.length !== 4) { $('online-aviso').textContent = 'el código tiene 4 letras'; return; }
+  let est;
+  try { est = await leer(c); } catch (e) { $('online-aviso').textContent = 'sin conexión'; return; }
+  if (!est) { $('online-aviso').textContent = 'esa sala no existe'; return; }
+  if (est.jug && est.jug['1']) { $('online-aviso').textContent = 'la sala está llena'; return; }
+  try { await escribir(c, { jug: Object.assign({}, est.jug, { 1: { n: 'invitado', ts: Date.now() } }), ts: Date.now() }); }
+  catch (e) { $('online-aviso').textContent = 'sin conexión'; return; }
+  sala = c; soyAnfitrion = false; yo = 1;
+  ir('screen-sala'); pintarSala(est); vigilar();
+}
+
+function vigilar() {
+  clearInterval(sonda);
+  sonda = setInterval(async () => {
+    if (!sala) return;
+    let est;
+    try { est = await leer(sala); } catch (e) { return; }
+    if (!est) return;
+    if (est.estado === 'espera') { pintarSala(est); return; }
+    if (est.estado === 'juego') aplicar(est);
+  }, 1400);
+}
+
+function cortar() {
+  clearInterval(sonda); sonda = null; sala = null; online = false; yo = 0;
+}
+
+// El anfitrión reparte y publica la mesa inicial
+async function repartirOnline() {
+  const mazo = baraja();
+  const m0 = mazo.splice(0, 7), m1 = mazo.splice(0, 7);
+  let mejor = -1, deQuien = 0, cual = 0;
+  const mirar = (mano, q) => mano.forEach((t, i) => {
+    const v = (t.a === t.b) ? 100 + t.a : t.a + t.b;
+    if (v > mejor) { mejor = v; deQuien = q; cual = i; }
+  });
+  mirar(m0, 0); mirar(m1, 1);
+  const sal = (deQuien === 0 ? m0 : m1).splice(cual, 1)[0];
+  const est = {
+    estado: 'juego', ronda: (ronda || 0) + 1, limite: limite,
+    manos: { 0: m0, 1: m1 }, pozo: mazo,
+    salida: { a: sal.a, b: sal.b, rot: 90, nx: 0, ny: -0.15 },
+    mesa: [], turno: (deQuien + 1) % 2, pases: 0,
+    totales: totales, ts: Date.now()
+  };
+  await escribir(sala, est);
+  aplicar(est);
+}
+
+let ultimaMesa = -1;
+function aplicar(est) {
+  if (!online) {                 // primera vez: se monta la partida
+    online = true; nJug = 2; limite = est.limite || 100;
+    totales = est.totales || [0, 0];
+    ir('screen-game');
+    requestAnimationFrame(() => requestAnimationFrame(() => montar(est)));
+    return;
+  }
+  if (est.ronda !== ronda) { montar(est); return; }
+  if ((est.mesa || []).length !== ultimaMesa) aplicarJugadas(est);
+  turno = est.turno;
+  pases = est.pases || 0;
+  if (est.pozo) pozo = est.pozo;
+  pintarChips(); pintarPozo();
+  if (turno === yo && bloqueo) { bloqueo = false; cambioTurno(); }
+}
+
+function montar(est) {
+  leerU();
+  fichas.forEach(f => f.el.remove());
+  dorsosIA.forEach(d => d.remove());
+  fichas = []; cadena = []; dorsosIA = []; arrastre = null; bloqueo = false;
+  pases = 0; robos = 0; motivoCierre = '';
+  ronda = est.ronda; limite = est.limite || 100;
+  totales = est.totales || [0, 0];
+  nJug = 2;
+  manos = [[], [], [], []];
+  pasoDe = [new Set(), new Set(), new Set(), new Set()];
+  manos[1 - yo] = (est.manos && est.manos[1 - yo]) || [];
+  pozo = est.pozo || [];
+  cerrarCarteles();
+
+  const h = mesa.clientHeight;
+  $('raya-ia').style.top = Math.round(U * 3.2) + 'px';
+  $('raya-tu').style.top = Math.round(h - U * 3.7) + 'px';
+
+  colocarMano((est.manos && est.manos[yo]) || []);
+
+  const s = deRed(est.salida);
+  const fs = crearFicha(s.a, s.b, s.x, s.y, s.rot);
+  fs.fija = true; fs.usadas = [false, false]; fs.lados = []; fs.salida = true;
+  fs.el.classList.add('jugada');
+  cadena.push(fs);
+  const hu = $('hueco');
+  hu.style.width = (U + 10) + 'px'; hu.style.height = (U*2 + 10) + 'px';
+  hu.style.left = Math.round(fs.x - U/2 - 5) + 'px';
+  hu.style.top = Math.round(fs.y - U - 5) + 'px';
+
+  ultimaMesa = 0;
+  aplicarJugadas(est);
+  turno = est.turno;
+  $('m-tu').textContent = totales[0]; $('m-ia').textContent = totales[1];
+  $('lbl-eq0').textContent = 'tú'; $('lbl-eq1').textContent = 'rival';
+  pintarPozo(); pintarChips(); cambioTurno(); arrancar();
+}
+
+// Coloca las jugadas del rival que aún no estén en la mesa
+function aplicarJugadas(est) {
+  const lista = est.mesa || [];
+  for (let i = ultimaMesa; i < lista.length; i++) {
+    const o = lista[i];
+    if (o.por === yo) continue;                 // las mías ya están puestas
+    const d = deRed(o);
+    const f = crearFicha(d.a, d.b, d.x, d.y, d.rot);
+    const con = conexion(f);
+    if (con) anotarJugada(f, con);
+    else { f.fija = true; f.usadas = [false,false]; f.lados = []; f.el.classList.add('jugada'); cadena.push(f); }
+    empujar(f, null); girar(f);
+    manos[1 - yo] = (est.manos && est.manos[1 - yo]) || manos[1 - yo];
+    $('aviso').textContent = 'tu rival juega el ' + o.a + '/' + o.b;
+  }
+  ultimaMesa = lista.length;
+  arrancar();
+}
+
+// Manda tu jugada a la sala
+async function enviarJugada(f) {
+  if (!online || !sala) return;
+  const o = aRed(f); o.por = yo;
+  let est;
+  try { est = await leer(sala); } catch (e) { $('aviso').textContent = 'sin conexión'; return; }
+  const lista = (est && est.mesa) || [];
+  lista.push(o);
+  const mias = miMano().map(t => ({ a: t.a, b: t.b }));
+  const nm = Object.assign({}, est.manos || {});
+  nm[yo] = mias;
+  ultimaMesa = lista.length;
+  try {
+    await escribir(sala, { mesa: lista, manos: nm, pozo: pozo, turno: (yo + 1) % 2, pases: 0, ts: Date.now() });
+  } catch (e) { $('aviso').textContent = 'sin conexión'; }
+}
+
 /* ============================================================ pantallas */
 function ir(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('visible'));
@@ -1157,6 +1406,7 @@ function arrancarRonda() {
 }
 
 function nuevaPartida() {
+  online = false; yo = 0; cortar();
   totales = [0, 0]; ronda = 0;
   $('m-tu').textContent = 0; $('m-ia').textContent = 0;
   $('lbl-eq0').textContent = nJug === 2 ? 'tú' : 'nosotros';
@@ -1165,7 +1415,14 @@ function nuevaPartida() {
   arrancarRonda();
 }
 
-$('btn-jugar').addEventListener('click', () => ir('screen-setup'));
+$('btn-jugar').addEventListener('click', () => { online = false; yo = 0; cortar(); ir('screen-setup'); });
+$('btn-online').addEventListener('click', () => { $('online-aviso').textContent = ''; $('union').style.display = 'none'; ir('screen-online'); });
+$('btn-online-volver').addEventListener('click', () => { cortar(); ir('screen-home'); });
+$('btn-crear').addEventListener('click', accionCrear);
+$('btn-unirse').addEventListener('click', () => { $('union').style.display = ''; $('codigo-in').focus(); });
+$('btn-entrar').addEventListener('click', accionEntrar);
+$('btn-empezar-sala').addEventListener('click', () => { ronda = 0; totales = [0,0]; repartirOnline(); });
+$('btn-salir-sala').addEventListener('click', () => { cortar(); ir('screen-home'); });
 $('btn-volver').addEventListener('click', () => ir('screen-home'));
 $('limite-cards').addEventListener('click', e => {
   const c = e.target.closest('.card'); if (!c) return;
@@ -1183,7 +1440,7 @@ $('btn-empezar').addEventListener('click', nuevaPartida);
 $('btn-siguiente').addEventListener('click', arrancarRonda);
 $('btn-revancha').addEventListener('click', nuevaPartida);
 $('btn-menu').addEventListener('click', () => { cerrarCarteles(); ir('screen-home'); });
-$('salir').addEventListener('click', () => { bloqueo = true; cerrarCarteles(); ir('screen-home'); });
+$('salir').addEventListener('click', () => { bloqueo = true; cerrarCarteles(); cortar(); ir('screen-home'); });
 
 $('help-btn').addEventListener('click', () => $('tutorial').classList.add('visible'));
 $('tut-cerrar').addEventListener('click', () => $('tutorial').classList.remove('visible'));
