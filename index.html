@@ -132,6 +132,17 @@ body.light .card { background: linear-gradient(180deg,var(--panel-2),var(--panel
 body.light .card .roman { color: var(--text); }
 .card .name { font-family: 'IBM Plex Mono', monospace; font-size: .58rem; letter-spacing: .22em; text-transform: uppercase; font-weight: 700; color: #fff; margin-top: .25rem; }
 body.light .card .name { color: var(--text); }
+#chips { flex: 0 0 auto; display: flex; gap: .35rem; justify-content: center; padding: .1rem .5rem .3rem; flex-wrap: wrap; }
+.chip {
+  display: flex; align-items: center; gap: .35rem; padding: .2rem .5rem;
+  border: 1px solid var(--line); border-radius: 20px; background: var(--panel);
+  font-family: 'IBM Plex Mono', monospace; font-size: .52rem; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--muted); transition: all .25s;
+}
+.chip b { color: var(--text); font-size: .68rem; }
+.chip.mio { border-color: color-mix(in srgb, var(--oro) 45%, var(--line)); }
+.chip.activo { border-color: var(--oro); color: var(--text); box-shadow: 0 0 10px -2px var(--oro); }
+.chip.activo b { color: var(--oro); }
 .ver-tag { position: absolute; bottom: max(.9rem, env(safe-area-inset-bottom)); left: 0; right: 0; text-align: center; font-family: 'IBM Plex Mono', monospace; font-size: .5rem; letter-spacing: .3em; color: var(--muted); opacity: .55; text-transform: uppercase; }
 
 /* ---------- tutorial ---------- */
@@ -250,8 +261,9 @@ body.light .card .name { color: var(--text); }
   <div class="paso"><div class="n">2</div><div class="t">Sale el <b>doble más alto</b> de las dos manos. Se clava en el centro y juega el otro.</div></div>
   <div class="paso"><div class="n">3</div><div class="t"><b>Arrastra</b> una ficha hasta un extremo. En cuanto casa, se encaja sola, se ilumina y <b>pasa el turno</b>. La mesa es libre: puedes dejar las fichas donde quieras mientras piensas.</div></div>
   <div class="paso"><div class="n">4</div><div class="t"><b>Toca una ficha</b> sin arrastrarla para <b>girarla</b> 90°.</div></div>
-  <div class="paso"><div class="n">5</div><div class="t">Si no casas, toca el <b>pozo</b>. Puedes robar <b>dos veces</b> por turno; si sigues sin casar, pasas.</div></div>
-  <div class="paso"><div class="n">★</div><div class="t">Quien se queda sin fichas gana la ronda y <b>resta 5</b>. El otro <b>suma</b> los puntos que le queden en la mano.</div></div>
+  <div class="paso"><div class="n">5</div><div class="t">Si no casas, toca el <b>pozo</b>. Puedes robar <b>dos veces</b> por turno; si sigues sin casar, pasas. En <b>parejas</b> se reparte la caja entera y no hay pozo.</div></div>
+  <div class="paso"><div class="n">6</div><div class="t">En <b>parejas</b> juegas con quien tienes enfrente. No hay señas: lo único que se sabe del compañero es lo que enseña <b>jugando y pasando</b>.</div></div>
+  <div class="paso"><div class="n">★</div><div class="t">Quien se queda sin fichas gana la ronda para su bando, que <b>resta 5</b>. El otro <b>suma</b> los puntos que le queden en la mano.</div></div>
   <div class="paso"><div class="n">♛</div><div class="t">Los puntos son malos: la partida acaba cuando alguien <b>llega al límite</b> y gana quien tenga el <b>total más bajo</b>.</div></div>
   <div class="btn-row" style="margin:.6rem 0 1rem"><button class="btn btn-sec" id="tut-cerrar">cerrar</button></div>
 </div>
@@ -265,12 +277,17 @@ body.light .card .name { color: var(--text); }
   <div class="title"><em>Ó</em><span>nix</span></div>
   <div class="subtitle">dominó</div>
   <div class="btn-row"><button class="btn" id="btn-jugar">Jugar</button></div>
-  <div class="ver-tag" id="ver-tag">v0.21.0</div>
+  <div class="ver-tag" id="ver-tag">v0.22.0</div>
 </div>
 
 <div id="screen-setup" class="screen">
   <div class="seal"><svg style="color:var(--accent)"><use href="#ico-domino"/></svg></div>
   <div class="subtitle">preparar partida</div>
+  <div class="section-label">modo</div>
+  <div class="cards" id="modo-cards">
+    <button class="card selected" data-jug="2" style="width:120px"><div class="roman">II</div><div class="name">1 vs 1</div></button>
+    <button class="card" data-jug="4" style="width:120px"><div class="roman">IV</div><div class="name">parejas</div></button>
+  </div>
   <div class="section-label">se pierde al llegar a</div>
   <div class="cards" id="limite-cards">
     <button class="card" data-limite="50"><div class="roman">L</div><div class="name">50</div></button>
@@ -283,10 +300,11 @@ body.light .card .name { color: var(--text); }
 
 <div id="screen-game" class="screen">
   <div class="cab">
-    <div class="m" id="cab-tu"><span>tú</span> <b id="m-tu">0</b></div>
-    <div class="m turno" id="cab-turno"><b id="m-turno">—</b></div>
-    <div class="m" id="cab-ia"><span>iris</span> <b id="m-ia">0</b></div>
+    <div class="m"><span id="lbl-eq0">tú</span> <b id="m-tu">0</b></div>
+    <div class="m turno"><b id="m-turno">—</b></div>
+    <div class="m"><span id="lbl-eq1">iris</span> <b id="m-ia">0</b></div>
   </div>
+  <div id="chips"></div>
   <div id="mesa">
     <div class="raya" id="raya-ia"></div>
     <div class="raya" id="raya-tu"></div>
@@ -319,7 +337,7 @@ body.light .card .name { color: var(--text); }
 </div>
 <script>
 "use strict";
-const VERSION = 'v0.21.0';
+const VERSION = 'v0.22.0';
 const $ = id => document.getElementById(id);
 const PUNTOS = { 0:[], 1:[5], 2:[1,9], 3:[1,5,9], 4:[1,3,7,9], 5:[1,3,5,7,9], 6:[1,2,3,7,8,9] };
 const DIR = { 0:[1,0], 90:[0,1], 180:[-1,0], 270:[0,-1] };
@@ -329,12 +347,15 @@ const mesa = $('mesa');
 let U = 24;
 let fichas = [];
 let cadena = [];
-let manoIA = [];
+let nJug = 2;
+let manos = [[], [], [], []];        // 1..3 son las manos de la IA
+const NOMBRES = ['Tú', 'Iris', 'Bruno', 'Vera'];
+let pasoDe = [];                     // qué números ha confesado no tener cada uno
 let dorsosIA = [];
 let pozo = [];
 let turno = 0;
 let bloqueo = false;
-let totales = [0, 0];
+let totales = [0, 0];                // por equipo: 0 = tú y tu pareja
 let pases = 0;
 let robos = 0;
 let motivoCierre = '';
@@ -575,6 +596,15 @@ function puedeJugar(mano) {
   return !!buscarEn(mano);
 }
 function miMano() { return fichas.filter(f => !f.fija); }
+function manoDe(p) { return p === 0 ? miMano() : manos[p]; }
+function equipo(p) { return p % 2; }
+function companero(p) { return (p + 2) % nJug; }
+
+// Cuando alguien pasa, confiesa que no tiene ninguno de los números abiertos.
+// Es la única información legítima que se pasan los compañeros en el dominó.
+function anotarPase(p) {
+  for (const v of valoresAbiertos()) pasoDe[p].add(v);
+}
 
 // Marca la ficha que sí te casa, para que no te quedes atascado buscándola.
 function pista(j) {
@@ -613,18 +643,21 @@ function nuevaRonda() {
   $('raya-tu').style.top = Math.round(h - U * 3.2) + 'px';
 
   const mazo = baraja();
+  manos = [[], [], [], []];
+  pasoDe = [new Set(), new Set(), new Set(), new Set()];
   const mias = mazo.splice(0, 7);
-  manoIA = mazo.splice(0, 7);
-  pozo = mazo;
+  for (let p = 1; p < nJug; p++) manos[p] = mazo.splice(0, 7);
+  pozo = mazo;                       // con cuatro jugadores se reparte entero
 
-  // sale el doble más alto que haya en las dos manos
-  let mejor = -1, deQuien = null, cual = -1;
+  // sale el doble más alto que haya en la mesa
+  let mejor = -1, deQuien = 0, cual = 0;
   const mirar = (mano, quien) => mano.forEach((t, i) => {
     const v = (t.a === t.b) ? 100 + t.a : t.a + t.b;
     if (v > mejor) { mejor = v; deQuien = quien; cual = i; }
   });
-  mirar(mias, 0); mirar(manoIA, 1);
-  const sal = (deQuien === 0 ? mias : manoIA).splice(cual, 1)[0];
+  mirar(mias, 0);
+  for (let p = 1; p < nJug; p++) mirar(manos[p], p);
+  const sal = (deQuien === 0 ? mias : manos[deQuien]).splice(cual, 1)[0];
 
   colocarMano(mias);
 
@@ -638,9 +671,10 @@ function nuevaRonda() {
   hu.style.left = Math.round(fs.x - U/2 - 5) + 'px';
   hu.style.top = Math.round(fs.y - U - 5) + 'px';
 
-  pintarIA(); pintarPozo();
-  turno = deQuien === 0 ? 1 : 0;     // sale uno, juega el otro
-  $('aviso').textContent = 'sale el ' + sal.a + '/' + sal.b + ' de ' + (deQuien === 0 ? 'tu mano' : 'Iris');
+  pintarIA(); pintarPozo(); pintarChips();
+  turno = (deQuien + 1) % nJug;      // sale uno, juega el siguiente
+  $('aviso').textContent = 'sale el ' + sal.a + '/' + sal.b + ' de '
+    + (deQuien === 0 ? 'tu mano' : NOMBRES[deQuien]);
   cambioTurno();
   arrancar();
 }
@@ -663,9 +697,11 @@ function colocarMano(mano) {
 function pintarIA() {
   dorsosIA.forEach(d => d.remove());
   dorsosIA = [];
+  const enfrente = nJug === 2 ? 1 : 2;      // el de enfrente: rival o pareja
+  const mano = manos[enfrente] || [];
   const w = mesa.clientWidth;
-  const paso = Math.max(U*.7, Math.min(U*1.5, (w - 20) / Math.max(1, manoIA.length)));
-  manoIA.forEach((t, i) => {
+  const paso = Math.max(U*.7, Math.min(U*1.5, (w - 20) / Math.max(1, mano.length)));
+  mano.forEach((t, i) => {
     const d = document.createElement('div');
     d.className = 'dorso';
     d.style.left = Math.round(10 + paso*i) + 'px';
@@ -687,9 +723,21 @@ function pintarPozo() {
   p.innerHTML = '<div class="n">' + pozo.length + '</div>';
 }
 
+function pintarChips() {
+  const c = $('chips');
+  let s = '';
+  for (let p = 0; p < nJug; p++) {
+    const n = manoDe(p).length;
+    s += '<div class="chip' + (p === turno && !bloqueo ? ' activo' : '')
+      + (nJug === 4 && equipo(p) === 0 ? ' mio' : '') + '">'
+      + '<span class="nm">' + NOMBRES[p] + '</span><b>' + n + '</b></div>';
+  }
+  c.innerHTML = s;
+}
+
 function cambioTurno() {
   robos = 0;
-  pintarPozo();
+  pintarPozo(); pintarChips();
   if (turno === 0) {
     $('m-turno').textContent = 'tu turno';
     sTurno();
@@ -767,50 +815,50 @@ function robar() {
   pintarPozo();
 }
 
-/* ---------------- turno de Iris ---------------- */
+/* ---------------- turno de una IA ---------------- */
 function turnoIA() {
-  // roba mientras no pueda
+  const yo = turno;
+  const mano = manos[yo];
   let n = 0;
-  while (!puedeJugar(manoIA) && pozo.length && n < MAX_ROBOS) { manoIA.push(pozo.pop()); n++; }
-  if (!puedeJugar(manoIA)) {
-    pintarIA(); pintarPozo();
-    $('aviso').textContent = 'Iris pasa';
-    bloqueo = false; pasar(1); return;
+  while (!puedeJugar(mano) && pozo.length && n < MAX_ROBOS) { mano.push(pozo.pop()); n++; }
+  if (!puedeJugar(mano)) {
+    pintarIA(); pintarPozo(); pintarChips();
+    $('aviso').textContent = NOMBRES[yo] + ' pasa';
+    bloqueo = false; pasar(yo); return;
   }
-  const j = buscarSitio();
+  const j = buscarEn(mano, yo);
   if (!j) {                       // le casa pero no tiene sitio donde ponerla
-    pintarIA();
-    $('aviso').textContent = 'Iris no tiene sitio';
-    bloqueo = false; pasar(1); return;
+    pintarIA(); pintarChips();
+    $('aviso').textContent = NOMBRES[yo] + ' no tiene sitio';
+    bloqueo = false; pasar(yo); return;
   }
 
-  manoIA.splice(j.idx, 1);
-  const f = crearFicha(j.t.a, j.t.b, mesa.clientWidth/2, U*1.4, j.rot);  // entra desde su lado
+  mano.splice(j.idx, 1);
+  const f = crearFicha(j.t.a, j.t.b, mesa.clientWidth/2, U*1.4, j.rot);
   f.x = j.x; f.y = j.y;
   const con = conexion(f);
   if (con) anotarJugada(f, con);
   else { f.fija = true; f.usadas = [false, false]; f.lados = []; f.el.classList.add('jugada'); cadena.push(f); }
-  empujar(f, null);            // aparta tus fichas sueltas si estorbaban
+  empujar(f, null);
   girar(f);
-  pintarIA();
+  pintarIA(); pintarChips();
   arrancar();
   pases = 0;
-  $('aviso').textContent = 'Iris juega el ' + j.t.a + '/' + j.t.b;
+  $('aviso').textContent = NOMBRES[yo] + ' juega el ' + j.t.a + '/' + j.t.b;
 
-  if (manoIA.length === 0) {
-    // se deja ver la última ficha de Iris antes de tapar la mesa
-    $('m-turno').textContent = 'iris cierra';
-    setTimeout(() => finRonda(1, 'dominó'), 1400);
+  if (mano.length === 0) {
+    $('m-turno').textContent = NOMBRES[yo].toLowerCase() + ' cierra';
+    setTimeout(() => finRonda(equipo(yo), 'dominó'), 1400);
     return;
   }
-  bloqueo = false; turno = 0;
+  bloqueo = false; turno = (yo + 1) % nJug;
   cambioTurno();
 }
 
 // Busca ficha y sitio válido en alguna ranura abierta. Vale para cualquier
 // mano. Solo se exige que quepa entre las fichas YA JUGADAS: las sueltas se
 // apartan solas al colocar.
-function buscarEn(mano) {
+function buscarEn(mano, quien) {
   let mejor = null, mejorNota = -Infinity;
   for (const r of ranuras()) {
     for (let idx = 0; idx < mano.length; idx++) {
@@ -860,7 +908,26 @@ function buscarEn(mano) {
         const dCentro = Math.hypot(p.x - w/2, p.y - hh/2);
         // sitio despejado pero SIN irse a los bordes: gastar el borde es lo
         // que deja la mesa sin hueco y cierra la ronda antes de tiempo
-        const nota = aire * 14
+        // Lectura de la mesa: quien pasa confiesa que no tiene ese número.
+        // Se premia dejar abiertos los palos que han fallado los rivales y
+        // se evita dejar los que ha fallado el compañero.
+        let lectura = 0;
+        if (quien !== undefined && quien !== null) {
+          const guardaU = cadena;
+          const abiertos = new Set();
+          for (const rr of ranuras()) abiertos.add(rr.v);
+          abiertos.delete(r.v);
+          abiertos.add(mm[1 - o.mia].v);
+          cadena = guardaU;
+          for (const v2 of abiertos) {
+            for (let q = 0; q < nJug; q++) {
+              if (q === quien) continue;
+              if (!pasoDe[q] || !pasoDe[q].has(v2)) continue;
+              lectura += (equipo(q) === equipo(quien)) ? -11 : 7;
+            }
+          }
+        }
+        const nota = lectura + aire * 14
                    + Math.min(borde, U*3) * 1.1
                    + Math.min(cercaOtra, U*2) * .4
                    - dCentro * .10
@@ -871,7 +938,6 @@ function buscarEn(mano) {
   }
   return mejor;
 }
-function buscarSitio() { return buscarEn(manoIA); }
 
 function rotDe(d) {
   for (const k of [0, 90, 180, 270]) if (DIR[k][0] === d[0] && DIR[k][1] === d[1]) return k;
@@ -881,11 +947,12 @@ function rotDe(d) {
 // Pasa el turno sin jugar. Dos pases seguidos cierran la ronda.
 function pasar(quien) {
   pases++;
-  const manoQ = quien === 0 ? miMano() : manoIA;
+  const manoQ = manoDe(quien);
+  anotarPase(quien);
   if (casaNumero(manoQ)) motivoCierre = 'sitio';
   else if (motivoCierre !== 'sitio') motivoCierre = 'numeros';
-  if (pases >= 2) { cerrarPorPuntos(); return; }
-  turno = quien === 0 ? 1 : 0;
+  if (pases >= nJug) { cerrarPorPuntos(); return; }
+  turno = (quien + 1) % nJug;
   bloqueo = false;
   setTimeout(cambioTurno, 700);
 }
@@ -894,15 +961,20 @@ function pasar(quien) {
 function comprobarFin() {
   if (bloqueo) return;
   if (pozo.length) return;
-  if (puedeJugar(miMano()) || puedeJugar(manoIA)) return;
+  for (let p = 0; p < nJug; p++) if (puedeJugar(manoDe(p))) return;
   cerrarPorPuntos();
 }
 function cerrarPorPuntos() {
-  if (!motivoCierre) motivoCierre = (casaNumero(miMano()) || casaNumero(manoIA)) ? 'sitio' : 'numeros';
+  if (!motivoCierre) {
+    let alguno = false;
+    for (let p = 0; p < nJug; p++) if (casaNumero(manoDe(p))) alguno = true;
+    motivoCierre = alguno ? 'sitio' : 'numeros';
+  }
   bloqueo = true;
-  const mis = miMano().reduce((s,t) => s + t.a + t.b, 0);
-  const sus = manoIA.reduce((s,t) => s + t.a + t.b, 0);
-  setTimeout(() => finRonda(mis <= sus ? 0 : 1, 'cierre'), 900);
+  // gana el equipo que menos puntos tenga en la mano
+  const eq = [0, 0];
+  for (let p = 0; p < nJug; p++) eq[equipo(p)] += manoDe(p).reduce((s,t) => s + t.a + t.b, 0);
+  setTimeout(() => finRonda(eq[0] <= eq[1] ? 0 : 1, 'cierre'), 900);
 }
 /* ============================================================ arrastre */
 function fichaEn(px, py) {
@@ -1013,9 +1085,8 @@ function cerrarCarteles() {
   $('ov-fin').classList.remove('visible');
 }
 
-function tablaHTML(delta) {
+function tablaHTML(delta, nom) {
   const orden = [0, 1].sort((a, b) => totales[a] - totales[b]);
-  const nom = ['Tú', 'Iris'];
   let s = '';
   for (const p of orden) {
     s += '<div class="fila' + (p === orden[0] ? ' lider' : '') + '">'
@@ -1026,35 +1097,40 @@ function tablaHTML(delta) {
   return s;
 }
 
-function finRonda(quien, como) {
+function finRonda(ganador, como) {
   bloqueo = true;
-  const mis = miMano().reduce((s, t) => s + t.a + t.b, 0);
-  const sus = manoIA.reduce((s, t) => s + t.a + t.b, 0);
-  const delta = [quien === 0 ? -5 : mis, quien === 1 ? -5 : sus];
+  // puntos que quedan en la mano de cada equipo
+  const eq = [0, 0];
+  for (let p = 0; p < nJug; p++) eq[equipo(p)] += manoDe(p).reduce((s, t) => s + t.a + t.b, 0);
+  const delta = [ganador === 0 ? -5 : eq[0], ganador === 1 ? -5 : eq[1]];
   totales[0] += delta[0];
   totales[1] += delta[1];
   $('m-tu').textContent = totales[0];
   $('m-ia').textContent = totales[1];
+  pintarChips();
 
+  const nom = nJug === 2 ? ['Tú', 'Iris'] : ['Tú y ' + NOMBRES[2], NOMBRES[1] + ' y ' + NOMBRES[3]];
   const acabada = totales[0] >= limite || totales[1] >= limite;
+
   if (acabada) {
     const campeon = totales[0] <= totales[1] ? 0 : 1;
-    const perdedor = 1 - campeon;
-    $('f-t').innerHTML = campeon === 0 ? '<em>Ganas la partida</em>' : '<em>Gana Iris</em>';
+    $('f-t').innerHTML = campeon === 0 ? '<em>Ganáis la partida</em>' : '<em>Gana ' + nom[1] + '</em>';
+    if (nJug === 2) $('f-t').innerHTML = campeon === 0 ? '<em>Ganas la partida</em>' : '<em>Gana Iris</em>';
     $('f-s').textContent = campeon === 0
-      ? 'Iris llega a ' + totales[1] + ' · ganas con ' + totales[0]
-      : 'llegas a ' + totales[0] + ' · Iris gana con ' + totales[1];
-    $('f-tabla').innerHTML = tablaHTML(delta);
+      ? nom[1] + ' llega a ' + totales[1] + ' · ganas con ' + totales[0]
+      : 'llegáis a ' + totales[0] + ' · gana ' + nom[1] + ' con ' + totales[1];
+    $('f-tabla').innerHTML = tablaHTML(delta, nom);
     $('ov-fin').classList.add('visible');
     (campeon === 0 ? sGana : sPierde)();
   } else {
-    $('r-t').innerHTML = quien === 0 ? '<em>Ronda tuya</em>' : '<em>Ronda de Iris</em>';
+    $('r-t').innerHTML = ganador === 0 ? '<em>Ronda vuestra</em>' : '<em>Ronda de ' + nom[1] + '</em>';
+    if (nJug === 2) $('r-t').innerHTML = ganador === 0 ? '<em>Ronda tuya</em>' : '<em>Ronda de Iris</em>';
     const porQue = como === 'dominó' ? 'dominó'
       : (motivoCierre === 'sitio' ? 'cierre · sin sitio en la mesa' : 'cierre · nadie casa');
     $('r-s').textContent = porQue + ' · ronda ' + ronda + ' · a ' + limite;
-    $('r-tabla').innerHTML = tablaHTML(delta);
+    $('r-tabla').innerHTML = tablaHTML(delta, nom);
     $('ov-ronda').classList.add('visible');
-    (quien === 0 ? sGana : sPierde)();
+    (ganador === 0 ? sGana : sPierde)();
   }
 }
 
@@ -1074,6 +1150,8 @@ function arrancarRonda() {
 function nuevaPartida() {
   totales = [0, 0]; ronda = 0;
   $('m-tu').textContent = 0; $('m-ia').textContent = 0;
+  $('lbl-eq0').textContent = nJug === 2 ? 'tú' : 'nosotros';
+  $('lbl-eq1').textContent = nJug === 2 ? 'iris' : 'ellos';
   ir('screen-game');
   arrancarRonda();
 }
@@ -1085,6 +1163,12 @@ $('limite-cards').addEventListener('click', e => {
   $('limite-cards').querySelectorAll('.card').forEach(x => x.classList.remove('selected'));
   c.classList.add('selected');
   limite = +c.dataset.limite;
+});
+$('modo-cards').addEventListener('click', e => {
+  const c = e.target.closest('.card'); if (!c) return;
+  $('modo-cards').querySelectorAll('.card').forEach(x => x.classList.remove('selected'));
+  c.classList.add('selected');
+  nJug = +c.dataset.jug;
 });
 $('btn-empezar').addEventListener('click', nuevaPartida);
 $('btn-siguiente').addEventListener('click', arrancarRonda);

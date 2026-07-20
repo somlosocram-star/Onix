@@ -1,4 +1,4 @@
-const CACHE = 'onix-v0.21.0';
+const CACHE = 'onix-v0.22.0';
 const ASSETS = ['./', './index.html', './manifest.webmanifest',
   './icon-192.png', './icon-512.png', './favicon-32.png', './apple-touch-icon.png'];
 self.addEventListener('install', e => {
