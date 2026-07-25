@@ -281,7 +281,7 @@ body.light .card .name { color: var(--text); }
     <button class="btn" id="btn-online">Multijugador</button>
     <button class="btn btn-sec" id="btn-instalar" style="display:none">▾ Instalar app</button>
   </div>
-  <div class="ver-tag" id="ver-tag">v0.29.0</div>
+  <div class="ver-tag" id="ver-tag">v0.29.1</div>
 </div>
 
 <div id="screen-setup" class="screen">
@@ -383,7 +383,7 @@ body.light .card .name { color: var(--text); }
   window.addEventListener('error', quita);
 })();
 
-const VERSION = 'v0.29.0';
+const VERSION = 'v0.29.1';
 const $ = id => document.getElementById(id);
 const PUNTOS = { 0:[], 1:[5], 2:[1,9], 3:[1,5,9], 4:[1,3,7,9], 5:[1,3,5,7,9], 6:[1,2,3,7,8,9] };
 const DIR = { 0:[1,0], 90:[0,1], 180:[-1,0], 270:[0,-1] };
@@ -856,7 +856,11 @@ function tocaPozo(cx, cy) {
   return cx >= r.left - m && cx <= r.right + m && cy >= r.top - m && cy <= r.bottom + m;
 }
 
+let ultimoRobo = 0;
 function robar() {
+  const ahora = Date.now();
+  if (ahora - ultimoRobo < 450) return;   // un toque = un robo (evita el mouse sintético del móvil)
+  ultimoRobo = ahora;
   if (turno !== yo || bloqueo) { $('aviso').textContent = 'espera tu turno'; return; }
   if (!pozo.length) { $('aviso').innerHTML = 'el pozo está <b>vacío</b>'; return; }
   if (robos >= MAX_ROBOS) { $('aviso').innerHTML = 'ya has robado <b>2</b> este turno'; return; }
@@ -1118,7 +1122,9 @@ function soltar() {
   arrancar();
 }
 
+let ultimoTouch = 0;
 mesa.addEventListener('touchstart', e => {
+  ultimoTouch = Date.now();
   const t = e.changedTouches[0], p = local(t);
   if (tocaPozo(t.clientX, t.clientY)) { robar(); e.preventDefault(); return; }
   if (arrastre) { e.preventDefault(); return; }
@@ -1141,6 +1147,7 @@ mesa.addEventListener('touchend', finTactil);
 mesa.addEventListener('touchcancel', finTactil);
 
 mesa.addEventListener('mousedown', e => {
+  if (Date.now() - ultimoTouch < 700) return;   // ignora el ratón sintético tras un toque
   const p = local(e);
   if (tocaPozo(e.clientX, e.clientY)) { robar(); return; }
   if (empezar(p.x, p.y, 'raton')) e.preventDefault();
