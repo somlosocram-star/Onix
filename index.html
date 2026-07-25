@@ -281,7 +281,7 @@ body.light .card .name { color: var(--text); }
     <button class="btn" id="btn-online">Multijugador</button>
     <button class="btn btn-sec" id="btn-instalar" style="display:none">▾ Instalar app</button>
   </div>
-  <div class="ver-tag" id="ver-tag">v0.31.1</div>
+  <div class="ver-tag" id="ver-tag">v0.32.0</div>
 </div>
 
 <div id="screen-setup" class="screen">
@@ -383,7 +383,7 @@ body.light .card .name { color: var(--text); }
   window.addEventListener('error', quita);
 })();
 
-const VERSION = 'v0.31.1';
+const VERSION = 'v0.32.0';
 const $ = id => document.getElementById(id);
 const PUNTOS = { 0:[], 1:[5], 2:[1,9], 3:[1,5,9], 4:[1,3,7,9], 5:[1,3,5,7,9], 6:[1,2,3,7,8,9] };
 const DIR = { 0:[1,0], 90:[0,1], 180:[-1,0], 270:[0,-1] };
@@ -533,11 +533,20 @@ function cabe(x, y, rot, salvo) {
 }
 
 // Dos mitades unidas: mismo valor y pegadas canto con canto.
-function unidas(f, g) {
+// Regla de dominó: cada mitad admite UNA SOLA unión. La que ya tiene pareja
+// está gastada y no puede recibir otra ficha (eso era la trampa de la IA).
+function unionEntre(f, g) {
   const a = mitades(f), b = mitades(g);
-  for (const p of a) for (const q of b) if (p.v === q.v && pegadas(p, q)) return true;
-  return false;
+  for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) {
+    const p = a[i], q = b[j];
+    if (p.v !== q.v || !pegadas(p, q)) continue;
+    if (f.usadas && f.usadas[i]) continue;      // mi mitad ya gastada
+    if (g.usadas && g.usadas[j]) continue;      // la suya ya gastada
+    return { mia: i, suya: j };
+  }
+  return null;
 }
+function unidas(f, g) { return !!unionEntre(f, g); }
 
 // Rejilla del imán: la posición se redondea a medias fichas respecto a la
 // ficha jugada más cercana, para que todo quede alineado como en una mesa
@@ -562,8 +571,11 @@ function alinear(f) {
 function apretar(prueba, g) {
   const ma = mitades(prueba), mb = mitades(g);
   let par = null, dmin = Infinity;
-  for (const p of ma) for (const q of mb) {
+  for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) {
+    const p = ma[i], q = mb[j];
     if (p.v !== q.v) continue;
+    if (prueba.usadas && prueba.usadas[i]) continue;
+    if (g.usadas && g.usadas[j]) continue;
     const d = Math.hypot(p.x - q.x, p.y - q.y);
     if (d < dmin && pegadas(p, q)) { dmin = d; par = { p: p, q: q }; }
   }
@@ -581,20 +593,39 @@ function apretar(prueba, g) {
   return { x: prueba.x + dx, y: prueba.y + dy };
 }
 
+// ¿La ficha, ya colocada, tocaría alguna mitad GASTADA de su mismo número?
+// Eso sería una segunda unión de rebote: no se permite.
+function rozaGastada(fin, salvoG, u) {
+  const mf = mitades(fin);
+  for (const g of cadena) {
+    const mg = mitades(g);
+    const ug = g.usadas || [false, false];
+    for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) {
+      if (mf[i].v !== mg[j].v || !pegadas(mf[i], mg[j])) continue;
+      if (g === salvoG && i === u.mia && j === u.suya) continue;  // la unión buena
+      return true;   // cualquier otro contacto de mismo número: fuera
+    }
+  }
+  return false;
+}
+
 function conexion(f) {
   const al = alinear(f);
   if (!al) return null;
   // se prueba como la soltaste y girada 180 (el número que casa puede estar
   // en la otra mitad); gana la primera que enganche
   for (const rot of [rotN(f.rot), rotN(f.rot + 180)]) {
-    const prueba = { a: f.a, b: f.b, x: al.x, y: al.y, rot: rot };
+    const prueba = { a: f.a, b: f.b, x: al.x, y: al.y, rot: rot, usadas: f.usadas };
     for (const g of cadena) {
-      if (!unidas(prueba, g)) continue;
+      const u = unionEntre(prueba, g);
+      if (!u) continue;
       // apretar hasta el tope contra la vecina
       const fino = apretar(prueba, g);
       if (!fino) continue;
       if (!cabe(fino.x, fino.y, rot, f)) continue;
-      return { x: fino.x, y: fino.y, rot: rot, con: g };
+      const fin = { a: f.a, b: f.b, x: fino.x, y: fino.y, rot: rot };
+      if (rozaGastada(fin, g, u)) continue;
+      return { x: fino.x, y: fino.y, rot: rot, con: g, u: u };
     }
   }
   return null;
@@ -608,6 +639,12 @@ function encajar(f, con) {
 function anotarJugada(f, con) {
   f.fija = true;
   f.origen = con.con;
+  f.usadas = f.usadas || [false, false];
+  if (con.u) {
+    f.usadas[con.u.mia] = true;
+    con.con.usadas = con.con.usadas || [false, false];
+    con.con.usadas[con.u.suya] = true;
+  }
   f.el.classList.remove('viva');
   f.el.classList.add('jugada', 'recien');
   setTimeout(() => f.el.classList.remove('recien'), 520);
@@ -620,7 +657,11 @@ function anotarJugada(f, con) {
 // valores presentes; puedeJugar hace la comprobación real con buscarEn.
 function valoresAbiertos() {
   const s = new Set();
-  for (const g of cadena) { s.add(g.a); s.add(g.b); }
+  for (const g of cadena) {
+    const u = g.usadas || [false, false];
+    if (!u[0]) s.add(g.a);
+    if (!u[1]) s.add(g.b);
+  }
   return s;
 }
 
@@ -702,7 +743,7 @@ function nuevaRonda() {
   colocarMano(mias);
 
   const fs = crearFicha(sal.a, sal.b, Math.round(w/2), Math.round(h*.46), 90);
-  fs.fija = true; fs.usadas = [false, false]; fs.lados = []; fs.salida = true;
+  fs.fija = true; fs.usadas = [false, false]; fs.salida = true;
   fs.el.classList.add('jugada');
   cadena.push(fs);
 
@@ -891,7 +932,7 @@ function turnoIA() {
   f.x = j.x; f.y = j.y;
   const con = conexion(f);
   if (con) anotarJugada(f, con);
-  else { f.fija = true; f.usadas = [false, false]; f.lados = []; f.el.classList.add('jugada'); cadena.push(f); }
+  else { f.fija = true; f.usadas = [false, false]; f.el.classList.add('jugada'); cadena.push(f); }
   empujar(f, null);
   girar(f);
   pintarIA(); pintarChips();
@@ -1323,7 +1364,7 @@ function montar(est) {
 
   const s = deRed(est.salida);
   const fs = crearFicha(s.a, s.b, s.x, s.y, s.rot);
-  fs.fija = true; fs.usadas = [false, false]; fs.lados = []; fs.salida = true;
+  fs.fija = true; fs.usadas = [false, false]; fs.salida = true;
   fs.el.classList.add('jugada');
   cadena.push(fs);
   const hu = $('hueco');
@@ -1350,7 +1391,7 @@ function aplicarJugadas(est) {
     const f = crearFicha(d.a, d.b, d.x, d.y, d.rot);
     const con = conexion(f);
     if (con) anotarJugada(f, con);
-    else { f.fija = true; f.usadas = [false,false]; f.lados = []; f.el.classList.add('jugada'); cadena.push(f); }
+    else { f.fija = true; f.usadas = [false,false]; f.el.classList.add('jugada'); cadena.push(f); }
     empujar(f, null); girar(f);
     manos[1 - yo] = (est.manos && est.manos[1 - yo]) || manos[1 - yo];
     $('aviso').textContent = 'tu rival juega el ' + o.a + '/' + o.b;
