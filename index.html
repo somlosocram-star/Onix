@@ -279,8 +279,9 @@ body.light .card .name { color: var(--text); }
   <div class="btn-row">
     <button class="btn" id="btn-jugar">Un jugador</button>
     <button class="btn" id="btn-online">Multijugador</button>
+    <button class="btn btn-sec" id="btn-instalar" style="display:none">▾ Instalar app</button>
   </div>
-  <div class="ver-tag" id="ver-tag">v0.26.0</div>
+  <div class="ver-tag" id="ver-tag">v0.27.0</div>
 </div>
 
 <div id="screen-setup" class="screen">
@@ -372,7 +373,7 @@ body.light .card .name { color: var(--text); }
 </div>
 <script>
 "use strict";
-const VERSION = 'v0.26.0';
+const VERSION = 'v0.27.0';
 const $ = id => document.getElementById(id);
 const PUNTOS = { 0:[], 1:[5], 2:[1,9], 3:[1,5,9], 4:[1,3,7,9], 5:[1,3,5,7,9], 6:[1,2,3,7,8,9] };
 const DIR = { 0:[1,0], 90:[0,1], 180:[-1,0], 270:[0,-1] };
@@ -1464,6 +1465,8 @@ function nuevaPartida() {
 }
 
 $('btn-jugar').addEventListener('click', () => { online = false; yo = 0; cortar(); ir('screen-setup'); });
+$('btn-instalar').addEventListener('click', abrirInstalacion);
+$('instala-cerrar').addEventListener('click', () => { $('instala-guia').style.display = 'none'; });
 $('btn-online').addEventListener('click', () => { $('online-aviso').textContent = ''; $('union').style.display = 'none'; ir('screen-online'); });
 $('btn-online-volver').addEventListener('click', () => { cortar(); ir('screen-home'); });
 $('btn-crear').addEventListener('click', accionCrear);
@@ -1504,6 +1507,38 @@ $('sound-toggle').addEventListener('click', () => {
 });
 window.addEventListener('resize', () => { if (!arrastre) { leerU(); arrancar(); } });
 
+let promptInstalar = null;
+window.addEventListener('beforeinstallprompt', function (e) {
+  e.preventDefault();
+  promptInstalar = e;
+  var b = $('btn-instalar');
+  if (b) b.style.display = '';
+});
+window.addEventListener('appinstalled', function () {
+  promptInstalar = null;
+  var b = $('btn-instalar');
+  if (b) b.style.display = 'none';
+});
+function yaInstalada() {
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+function abrirInstalacion() {
+  if (promptInstalar) {
+    promptInstalar.prompt();
+    promptInstalar.userChoice.finally(function () { promptInstalar = null; $('btn-instalar').style.display = 'none'; });
+    return;
+  }
+  var ua = navigator.userAgent || '';
+  var iOS = /iphone|ipad|ipod/i.test(ua);
+  var firefox = /firefox/i.test(ua);
+  var txt;
+  if (iOS) txt = 'En Safari: toca Compartir  ↑  y luego «Añadir a pantalla de inicio».';
+  else if (firefox) txt = 'En Firefox: menú  ⋮  →  «Instalar» o «Añadir a pantalla de inicio».';
+  else txt = 'En el menú del navegador  ⋮  busca «Instalar aplicación» o «Añadir a pantalla de inicio».';
+  $('instala-txt').textContent = txt;
+  $('instala-guia').style.display = 'flex';
+}
+
 (function init() {
   try {
     if (localStorage.getItem('onix_theme') === 'light') document.body.classList.add('light');
@@ -1511,6 +1546,12 @@ window.addEventListener('resize', () => { if (!arrastre) { leerU(); arrancar(); 
   } catch (e) {}
   document.documentElement.classList.remove('pre-light');
   $('ver-tag').textContent = VERSION;
+  setTimeout(function () {
+    if (!yaInstalada() && !promptInstalar) {
+      var ua = navigator.userAgent || '';
+      if (/iphone|ipad|ipod|firefox/i.test(ua)) $('btn-instalar').style.display = '';
+    }
+  }, 800);
   setTimeout(() => {
     const s = $('app-splash');
     if (s) { s.classList.add('hiding'); setTimeout(() => { s.style.display = 'none'; }, 700); }
