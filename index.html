@@ -281,7 +281,7 @@ body.light .card .name { color: var(--text); }
     <button class="btn" id="btn-online">Multijugador</button>
     <button class="btn btn-sec" id="btn-instalar" style="display:none">▾ Instalar app</button>
   </div>
-  <div class="ver-tag" id="ver-tag">v0.28.0</div>
+  <div class="ver-tag" id="ver-tag">v0.29.0</div>
 </div>
 
 <div id="screen-setup" class="screen">
@@ -383,7 +383,7 @@ body.light .card .name { color: var(--text); }
   window.addEventListener('error', quita);
 })();
 
-const VERSION = 'v0.28.0';
+const VERSION = 'v0.29.0';
 const $ = id => document.getElementById(id);
 const PUNTOS = { 0:[], 1:[5], 2:[1,9], 3:[1,5,9], 4:[1,3,7,9], 5:[1,3,5,7,9], 6:[1,2,3,7,8,9] };
 const DIR = { 0:[1,0], 90:[0,1], 180:[-1,0], 270:[0,-1] };
@@ -1474,37 +1474,45 @@ function nuevaPartida() {
   arrancarRonda();
 }
 
-$('btn-jugar').addEventListener('click', () => { online = false; yo = 0; cortar(); ir('screen-setup'); });
-$('btn-instalar').addEventListener('click', abrirInstalacion);
-$('instala-cerrar').addEventListener('click', () => { $('instala-guia').style.display = 'none'; });
-$('btn-online').addEventListener('click', () => { $('online-aviso').textContent = ''; $('union').style.display = 'none'; ir('screen-online'); });
-$('btn-online-volver').addEventListener('click', () => { cortar(); ir('screen-home'); });
-$('btn-crear').addEventListener('click', accionCrear);
-$('btn-unirse').addEventListener('click', () => { $('union').style.display = ''; $('codigo-in').focus(); });
-$('btn-entrar').addEventListener('click', accionEntrar);
-$('btn-empezar-sala').addEventListener('click', () => { ronda = 0; totales = [0,0]; repartirOnline(); });
-$('btn-salir-sala').addEventListener('click', () => { cortar(); ir('screen-home'); });
-$('btn-volver').addEventListener('click', () => ir('screen-home'));
-$('limite-cards').addEventListener('click', e => {
+// Enganche seguro: si un elemento falta o su handler peta, no arrastra al resto.
+function clic(id, fn) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('click', function (e) { try { fn(e); } catch (err) {} });
+}
+clic('btn-jugar', () => { online = false; yo = 0; cortar(); ir('screen-setup'); });
+clic('btn-instalar', abrirInstalacion);
+clic('instala-cerrar', () => { $('instala-guia').style.display = 'none'; });
+clic('btn-online', () => { $('online-aviso').textContent = ''; $('union').style.display = 'none'; ir('screen-online'); });
+clic('btn-online-volver', () => { cortar(); ir('screen-home'); });
+clic('btn-crear', accionCrear);
+clic('btn-unirse', () => { $('union').style.display = ''; $('codigo-in').focus(); });
+clic('btn-entrar', accionEntrar);
+clic('btn-empezar-sala', () => { ronda = 0; totales = [0,0]; repartirOnline(); });
+clic('btn-salir-sala', () => { cortar(); ir('screen-home'); });
+clic('btn-volver', () => ir('screen-home'));
+var lc = document.getElementById('limite-cards');
+if (lc) lc.addEventListener('click', e => {
   const c = e.target.closest('.card'); if (!c) return;
   $('limite-cards').querySelectorAll('.card').forEach(x => x.classList.remove('selected'));
   c.classList.add('selected');
   limite = +c.dataset.limite;
 });
-$('modo-cards').addEventListener('click', e => {
+var mc = document.getElementById('modo-cards');
+if (mc) mc.addEventListener('click', e => {
   const c = e.target.closest('.card'); if (!c) return;
   $('modo-cards').querySelectorAll('.card').forEach(x => x.classList.remove('selected'));
   c.classList.add('selected');
   nJug = +c.dataset.jug;
 });
-$('btn-empezar').addEventListener('click', nuevaPartida);
-$('btn-siguiente').addEventListener('click', arrancarRonda);
-$('btn-revancha').addEventListener('click', nuevaPartida);
-$('btn-menu').addEventListener('click', () => { cerrarCarteles(); ir('screen-home'); });
-$('salir').addEventListener('click', () => { bloqueo = true; cerrarCarteles(); cortar(); ir('screen-home'); });
+clic('btn-empezar', nuevaPartida);
+clic('btn-siguiente', arrancarRonda);
+clic('btn-revancha', nuevaPartida);
+clic('btn-menu', () => { cerrarCarteles(); ir('screen-home'); });
+clic('salir', () => { bloqueo = true; cerrarCarteles(); cortar(); ir('screen-home'); });
 
-$('help-btn').addEventListener('click', () => $('tutorial').classList.add('visible'));
-$('tut-cerrar').addEventListener('click', () => $('tutorial').classList.remove('visible'));
+clic('help-btn', () => $('tutorial').classList.add('visible'));
+clic('tut-cerrar', () => $('tutorial').classList.remove('visible'));
 $('theme-toggle').addEventListener('click', () => {
   const l = document.body.classList.toggle('light');
   document.documentElement.classList.remove('pre-light');
