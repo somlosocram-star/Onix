@@ -281,7 +281,7 @@ body.light .card .name { color: var(--text); }
     <button class="btn" id="btn-online">Multijugador</button>
     <button class="btn btn-sec" id="btn-instalar" style="display:none">▾ Instalar app</button>
   </div>
-  <div class="ver-tag" id="ver-tag">v0.30.2</div>
+  <div class="ver-tag" id="ver-tag">v0.31.0</div>
 </div>
 
 <div id="screen-setup" class="screen">
@@ -383,7 +383,7 @@ body.light .card .name { color: var(--text); }
   window.addEventListener('error', quita);
 })();
 
-const VERSION = 'v0.30.2';
+const VERSION = 'v0.31.0';
 const $ = id => document.getElementById(id);
 const PUNTOS = { 0:[], 1:[5], 2:[1,9], 3:[1,5,9], 4:[1,3,7,9], 5:[1,3,5,7,9], 6:[1,2,3,7,8,9] };
 const DIR = { 0:[1,0], 90:[0,1], 180:[-1,0], 270:[0,-1] };
@@ -514,168 +514,88 @@ function libre(x, y, rot, salvo) {
   return true;
 }
 
-/* ============================================================ reglas */
+/* ============================================================ reglas
+   MESA REAL. La única regla del dominó: dos fichas están unidas si dos
+   mitades del MISMO VALOR se tocan canto con canto. Sin ranuras, sin sitios
+   calculados, sin casos especiales para dobles. Tú colocas; el imán alinea
+   a la rejilla; el juego solo comprueba contactos.
+   ============================================================ */
 function rotN(r) { return ((r % 360) + 360) % 360; }
 function esDoble(f) { return f.a === f.b; }
 
-/* Ranuras abiertas de la cadena.
-   - Ficha normal: cada mitad libre admite una unión, y puede salir en
-     cualquier dirección menos hacia su propia pareja.
-   - Doble atravesado: recibe por sus DOS COSTADOS, centrado. No por las
-     puntas, que es lo que hacía el escalón. */
-function ranuras() {
-  const out = [];
-  for (const g of cadena) {
-    if (esDoble(g)) {
-      const gd = DIR[rotN(g.rot)];
-      const lados = Math.abs(gd[0]) === 1 ? [[0,1],[0,-1]] : [[1,0],[-1,0]];
-      for (const d of lados) {
-        if ((g.lados || []).some(l => l[0] === d[0] && l[1] === d[1])) continue;
-        out.push({ g: g, base: { x: g.x, y: g.y }, d: d, v: g.a, doble: true });
-      }
-    } else {
-      const m = mitades(g);
-      for (let j = 0; j < 2; j++) {
-        if (g.usadas[j]) continue;
-        const otra = m[1-j];
-        const haciaDentro = [Math.sign(otra.x - m[j].x), Math.sign(otra.y - m[j].y)];
-        for (const d of EJES) {
-          if (d[0] === haciaDentro[0] && d[1] === haciaDentro[1]) continue;
-          out.push({ g: g, j: j, base: m[j], d: d, v: m[j].v, doble: false });
-        }
-      }
-    }
-  }
-  return out;
-}
-function valoresAbiertos() {
-  const s = new Set();
-  for (const r of ranuras()) s.add(r.v);
-  return s;
-}
-function ladoDe(f, g) {
-  const dx = f.x - g.x, dy = f.y - g.y;
-  return Math.abs(dx) >= Math.abs(dy) ? [Math.sign(dx) || 1, 0] : [0, Math.sign(dy) || 1];
-}
-
 // ¿Cabe una ficha ahí sin pisar ninguna jugada ya hecha?
 function cabe(x, y, rot, salvo) {
-  const p = { x: x, y: y, rot: rot };
+  const pr = { x: x, y: y, rot: rot };
   const m = medios(rot), w = mesa.clientWidth, hh = mesa.clientHeight;
   if (x - m.mx < 2 || y - m.my < 2 || x + m.mx > w - 2 || y + m.my > hh - 2) return false;
-  for (const g of cadena) { if (g === salvo) continue; if (choque(p, g)) return false; }
+  for (const g of cadena) { if (g === salvo) continue; if (choque(pr, g)) return false; }
   return true;
 }
 
-// ¿La ficha f, tal y como está puesta, engancha con alguna ranura?
-// Se miran TODAS y gana la que deje la ficha más cerca de donde la soltaste:
-// así se respeta lo que querías hacer y no la primera que salga en la lista.
+// Dos mitades unidas: mismo valor y pegadas canto con canto.
+function unidas(f, g) {
+  const a = mitades(f), b = mitades(g);
+  for (const p of a) for (const q of b) if (p.v === q.v && pegadas(p, q)) return true;
+  return false;
+}
+
+// Rejilla del imán: la posición se redondea a medias fichas respecto a la
+// ficha jugada más cercana, para que todo quede alineado como en una mesa
+// cuidada. Devuelve la posición alineada o null si no hay nada cerca.
+function alinear(f) {
+  let cerca = null, dmin = Infinity;
+  for (const g of cadena) {
+    const d = Math.hypot(f.x - g.x, f.y - g.y);
+    if (d < dmin) { dmin = d; cerca = g; }
+  }
+  if (!cerca || dmin > U * 3.2) return null;
+  const px = cerca.x + Math.round((f.x - cerca.x) / (U / 2)) * (U / 2);
+  const py = cerca.y + Math.round((f.y - cerca.y) / (U / 2)) * (U / 2);
+  return { x: px, y: py };
+}
+
+// La jugada del humano: se alinea a la rejilla y, si en esa posición la
+// ficha queda unida a la cadena por número y cabe, es válida.
 function conexion(f) {
-  let mejor = null, mejorD = Infinity;
-  // se prueban las dos orientaciones posibles de la ficha en cada ranura:
-  // como la soltaste, y girada 180. Así el costado de un doble la acepta
-  // aunque la traigas al revés.
-  for (const r of ranuras()) {
-    for (const rot of [f.rot, f.rot + 90, f.rot + 180, f.rot + 270]) {
-      const prueba = { a: f.a, b: f.b, x: f.x, y: f.y, rot: rot };
-      const m = mitades(prueba);
-      for (let i = 0; i < 2; i++) {
-        if (m[i].v !== r.v) continue;
-        if (r.doble) {
-          const l = ladoDe(prueba, r.g);
-          if (l[0] !== r.d[0] || l[1] !== r.d[1]) continue;
-          const mg = mitades(r.g);
-          if (!pegadas(m[i], mg[0]) && !pegadas(m[i], mg[1])) continue;
-        } else {
-          if (!pegadas(m[i], r.base)) continue;
-        }
-        const rf = rotFinal(f.a, f.b, r, rot);
-        // La orientación final debe ser COHERENTE con la dirección de la
-        // ranura, o la ficha queda pegada de refilón y dislocada.
-        // - ficha normal en un extremo: va EN LÍNEA con la ranura (su eje
-        //   largo apunta en la dirección d).
-        // - doble: va atravesado (perpendicular a d).
-        const dir = DIR[rotN(rf)];
-        const enLinea = Math.abs(dir[0]*r.d[0] + dir[1]*r.d[1]) === 1;
-        if (f.a !== f.b && !enLinea) continue;      // normal debe ir en línea
-        if (f.a === f.b && enLinea) continue;        // doble debe ir cruzado
-        const p = sitioEn(r, f.a, f.b, i, rf);
-        // el sitio final debe seguir tocando la ranura de verdad
-        const fin = { a: f.a, b: f.b, x: p.x, y: p.y, rot: rf };
-        const mf = mitades(fin);
-        let toca = false;
-        if (r.doble) {
-          const mg = mitades(r.g);
-          for (const mm of mf) if (mm.v === r.v && (pegadas(mm, mg[0]) || pegadas(mm, mg[1]))) toca = true;
-        } else {
-          for (const mm of mf) if (mm.v === r.v && pegadas(mm, r.base)) toca = true;
-        }
-        if (!toca) continue;
-        if (!cabe(p.x, p.y, rf, f)) continue;
-        const d = Math.hypot(p.x - f.x, p.y - f.y);
-        if (d < mejorD) { mejorD = d; mejor = { mia: i, r: r, rot: rf }; }
-      }
+  const al = alinear(f);
+  if (!al) return null;
+  // se prueba como la soltaste y girada 180 (el número que casa puede estar
+  // en la otra mitad); gana la primera que enganche
+  for (const rot of [rotN(f.rot), rotN(f.rot + 180)]) {
+    if (!cabe(al.x, al.y, rot, f)) continue;
+    const prueba = { a: f.a, b: f.b, x: al.x, y: al.y, rot: rot };
+    for (const g of cadena) {
+      if (unidas(prueba, g)) return { x: al.x, y: al.y, rot: rot, con: g };
     }
   }
-  return mejor;
+  return null;
 }
 
-// Sitio exacto donde debe quedar una ficha al engancharse a una ranura.
-// El giro con el que acaba una ficha al engancharse. Los dobles van siempre
-// atravesados: es lo que hace que dejen un solo costado libre y que la
-// cadena tenga dos extremos y no se parta en tres.
-function rotFinal(a, b, r, rot) {
-  if (a !== b) return rot;
-  return Math.abs(r.d[0]) === 1 ? 90 : 0;
-}
-function sitioEn(r, a, b, mia, rot) {
-  // doble que entra: atravesado, a una ficha del extremo
-  if (a === b) return { x: r.base.x + r.d[0]*U, y: r.base.y + r.d[1]*U };
-  const dir = DIR[rotN(rot)];
-  const s = mia === 0 ? -1 : 1;
-  // vecino de un doble: va CENTRADO sobre el eje del doble, sin el desvío de
-  // media ficha. Ese desvío es solo para engancharse a la mitad de una ficha
-  // normal, no al costado de un doble.
-  if (r.doble) {
-    return { x: r.base.x + r.d[0]*(U + U/2), y: r.base.y + r.d[1]*(U + U/2) };
-  }
-  return { x: r.base.x + r.d[0]*U - s*dir[0]*U/2,
-           y: r.base.y + r.d[1]*U - s*dir[1]*U/2 };
-}
-
-// Encaja a hueso: es el imán. Aceptamos con holgura y luego colocamos exacto.
 function encajar(f, con) {
-  if (con.rot !== undefined) f.rot = con.rot;
-  const p = sitioEn(con.r, f.a, f.b, con.mia, f.rot);
-  f.x = p.x; f.y = p.y;
+  f.x = con.x; f.y = con.y; f.rot = con.rot;
   dentro(f);
 }
 
 function anotarJugada(f, con) {
-  const r = con.r;
   f.fija = true;
-  f.usadas = [false, false];
-  f.usadas[con.mia] = true;
-  // si la ficha es doble, el costado por el que ha entrado queda gastado
-  f.lados = (f.a === f.b) ? [[-r.d[0], -r.d[1]]] : [];
-  if (r.doble) {
-    r.g.lados = r.g.lados || [];
-    r.g.lados.push(r.d);
-    r.g.usadas[r.g.usadas[0] ? 1 : 0] = true;
-  } else {
-    r.g.usadas[r.j] = true;
-  }
-  f.origen = r.g;                  // a qué ficha se enganchó de verdad
+  f.origen = con.con;
   f.el.classList.remove('viva');
   f.el.classList.add('jugada', 'recien');
-  sClac();
   setTimeout(() => f.el.classList.remove('recien'), 520);
   cadena.push(f);
+  sClac();
 }
 
-// Poder jugar no es que te case un número: es que EXISTA un hueco donde
-// quepa la ficha. Si no, el juego te daba por servido y te dejaba encerrado.
-// Te casa algun numero, aunque luego no haya sitio donde ponerla
+// Valores con los que aún se puede enganchar: los de cualquier mitad de la
+// cadena que tenga sitio libre alrededor. Aproximación generosa: todos los
+// valores presentes; puedeJugar hace la comprobación real con buscarEn.
+function valoresAbiertos() {
+  const s = new Set();
+  for (const g of cadena) { s.add(g.a); s.add(g.b); }
+  return s;
+}
+
+// ¿Te casa algún número, aunque no haya sitio?
 function casaNumero(mano) {
   const v = valoresAbiertos();
   return mano.some(t => v.has(t.a) || v.has(t.b));
@@ -860,13 +780,10 @@ function intentar(f) {
   const con = conexion(f);
   if (!con) {
     if (cerca(f)) {
-      // ¿el número casa pero no hay hueco físico? avisar distinto
-      const m = mitades(f);
-      let casaAlgo = false;
-      for (const r of ranuras()) for (const mm of m) if (mm.v === r.v) casaAlgo = true;
-      $('aviso').innerHTML = casaAlgo
-        ? 'ese extremo está <b>sin hueco</b> · prueba el otro'
-        : 'ahí <b>no casa</b> · prueba otro extremo';
+      const v = valoresAbiertos();
+      $('aviso').innerHTML = (v.has(f.a) || v.has(f.b))
+        ? 'ahí no encaja · <b>acércala más</b> o prueba otro sitio'
+        : 'ahí <b>no casa</b> · prueba otro número';
     }
     return;
   }
@@ -964,112 +881,44 @@ function turnoIA() {
 
 // Busca ficha y sitio válido en alguna ranura abierta. Vale para cualquier
 // mano. Solo se exige que quepa entre las fichas YA JUGADAS: las sueltas se
-// apartan solas al colocar.
+// La IA usa EXACTAMENTE la misma validación que el humano: genera posiciones
+// candidatas alrededor de cada ficha jugada (a rejilla) y comprueba unidas+cabe.
 function buscarEn(mano, quien) {
   let mejor = null, mejorNota = -Infinity;
-  for (const r of ranuras()) {
-    for (let idx = 0; idx < mano.length; idx++) {
-      const t = mano[idx];
-      if (t.a !== r.v && t.b !== r.v) continue;
-      const opciones = [];
-      if (t.a === t.b) opciones.push({ rot: Math.abs(r.d[0]) === 1 ? 90 : 0, mia: 0 });
-      if (t.a === r.v) opciones.push({ rot: rotDe(r.d), mia: 0 });
-      if (t.b === r.v) opciones.push({ rot: rotDe([-r.d[0], -r.d[1]]), mia: 1 });
-      for (const o of opciones) {
-        if (o.rot === null) continue;
-        const p = sitioEn(r, t.a, t.b, o.mia, o.rot);
-        if (!cabe(p.x, p.y, o.rot, null)) continue;
-        const prueba = { a: t.a, b: t.b, x: p.x, y: p.y, rot: o.rot };
-        const m2 = mitades(prueba);
-        let vale = false;
-        for (let i = 0; i < 2; i++) {
-          if (m2[i].v !== r.v) continue;
-          if (r.doble) {
-            const l = ladoDe(prueba, r.g);
-            if (l[0] !== r.d[0] || l[1] !== r.d[1]) continue;
-            const mg = mitades(r.g);
-            if (pegadas(m2[i], mg[0]) || pegadas(m2[i], mg[1])) vale = true;
-          } else if (pegadas(m2[i], r.base)) vale = true;
-        }
-        if (!vale) continue;
-        let cercaOtra = Infinity;
-        for (const g of cadena) {
-          if (g === r.g) continue;
-          const dd = Math.hypot(p.x - g.x, p.y - g.y);
-          if (dd < cercaOtra) cercaOtra = dd;
-        }
-        if (cercaOtra === Infinity) cercaOtra = U * 6;
-        const w = mesa.clientWidth, hh = mesa.clientHeight;
-        const borde = Math.min(p.x, p.y, w - p.x, hh - p.y);
-        // ¿el extremo que queda libre podrá seguir creciendo? Un extremo
-        // ahogado es lo que acaba cerrando la ronda sin que nadie lo decida
-        const nueva = { a: t.a, b: t.b, x: p.x, y: p.y, rot: o.rot };
-        const mm = mitades(nueva);
-        const libreMitad = mm[1 - o.mia];
-        // Visión de dos casillas: en un caracol la de al lado está libre
-        // pero la siguiente no, y ahí es donde la IA se ahogaba sola.
-        let aire = 0;
-        for (const d2 of EJES) {
-          const rr = rotDe(d2);
-          if (rr === null) continue;
-          const cerca = cabe(libreMitad.x + d2[0]*U*1.5, libreMitad.y + d2[1]*U*1.5, rr, null);
-          if (!cerca) continue;
-          aire += 1;
-          // ¿y una ficha más allá, en línea o girando?
-          let sigue = false;
-          for (const d3 of EJES) {
-            const rr3 = rotDe(d3);
-            if (rr3 === null) continue;
-            if (cabe(libreMitad.x + d2[0]*U*3.5 + d3[0]*U*1.5,
-                     libreMitad.y + d2[1]*U*3.5 + d3[1]*U*1.5, rr3, null)) { sigue = true; break; }
+  const w = mesa.clientWidth, hh = mesa.clientHeight;
+  for (let idx = 0; idx < mano.length; idx++) {
+    const t = mano[idx];
+    for (const g of cadena) {
+      if (t.a !== g.a && t.a !== g.b && t.b !== g.a && t.b !== g.b) continue;
+      // posiciones candidatas: anillo a rejilla de media ficha alrededor de g
+      for (let ox = -3; ox <= 3; ox++) for (let oy = -3; oy <= 3; oy++) {
+        if (ox === 0 && oy === 0) continue;
+        const x = g.x + ox * (U / 2), y = g.y + oy * (U / 2);
+        for (const rot of [0, 90]) {
+          if (!cabe(x, y, rot, null)) continue;
+          const prueba = { a: t.a, b: t.b, x: x, y: y, rot: rot };
+          if (!unidas(prueba, g)) continue;
+          // nota del sitio: espacio alrededor, lejos del borde, cerca del centro
+          let apinado = 0;
+          for (const q of cadena) {
+            if (q === g) continue;
+            if (Math.abs(x - q.x) < U*2.2 && Math.abs(y - q.y) < U*2.2) apinado++;
           }
-          if (sigue) aire += 2;
+          const borde = Math.min(x, y, w - x, hh - y);
+          const dCentro = Math.hypot(x - w/2, y - hh/2);
+          const nota = Math.min(borde, U*3) * 1.2
+                     - apinado * 10
+                     - dCentro * .12
+                     + (t.a + t.b) * .3
+                     + Math.random() * 2;
+          if (nota > mejorNota) { mejorNota = nota; mejor = { idx: idx, t: t, x: x, y: y, rot: rot }; }
         }
-        const dCentro = Math.hypot(p.x - w/2, p.y - hh/2);
-        // sitio despejado pero SIN irse a los bordes: gastar el borde es lo
-        // que deja la mesa sin hueco y cierra la ronda antes de tiempo
-        // Lectura de la mesa: quien pasa confiesa que no tiene ese número.
-        // Se premia dejar abiertos los palos que han fallado los rivales y
-        // se evita dejar los que ha fallado el compañero.
-        let lectura = 0;
-        if (quien !== undefined && quien !== null) {
-          const guardaU = cadena;
-          const abiertos = new Set();
-          for (const rr of ranuras()) abiertos.add(rr.v);
-          abiertos.delete(r.v);
-          abiertos.add(mm[1 - o.mia].v);
-          cadena = guardaU;
-          for (const v2 of abiertos) {
-            for (let q = 0; q < nJug; q++) {
-              if (q === quien) continue;
-              if (!pasoDe[q] || !pasoDe[q].has(v2)) continue;
-              lectura += (equipo(q) === equipo(quien)) ? -11 : 7;
-            }
-          }
-        }
-        // Cuenta cuántas fichas jugadas hay pegando alrededor del sitio: es
-        // la medida de "estar metiéndose en un rincón". Cuantas más, peor.
-        let apinado = 0;
-        for (const g of cadena) {
-          if (g === r.g) continue;
-          if (Math.abs(p.x - g.x) < U*2.2 && Math.abs(p.y - g.y) < U*2.2) apinado++;
-        }
-        const nota = lectura + aire * 16
-                   - apinado * 10
-                   + Math.min(borde, U*3) * 1.1
-                   - dCentro * .12
-                   + (t.a + t.b) * .3;
-        if (nota > mejorNota) { mejorNota = nota; mejor = { idx: idx, t: t, x: p.x, y: p.y, rot: o.rot }; }
       }
     }
   }
   return mejor;
 }
 
-function rotDe(d) {
-  for (const k of [0, 90, 180, 270]) if (DIR[k][0] === d[0] && DIR[k][1] === d[1]) return k;
-  return null;
-}
 
 // Pasa el turno sin jugar. Dos pases seguidos cierran la ronda.
 function pasar(quien) {
