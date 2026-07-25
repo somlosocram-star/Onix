@@ -281,7 +281,7 @@ body.light .card .name { color: var(--text); }
     <button class="btn" id="btn-online">Multijugador</button>
     <button class="btn btn-sec" id="btn-instalar" style="display:none">▾ Instalar app</button>
   </div>
-  <div class="ver-tag" id="ver-tag">v0.32.0</div>
+  <div class="ver-tag" id="ver-tag">v0.32.1</div>
 </div>
 
 <div id="screen-setup" class="screen">
@@ -383,7 +383,7 @@ body.light .card .name { color: var(--text); }
   window.addEventListener('error', quita);
 })();
 
-const VERSION = 'v0.32.0';
+const VERSION = 'v0.32.1';
 const $ = id => document.getElementById(id);
 const PUNTOS = { 0:[], 1:[5], 2:[1,9], 3:[1,5,9], 4:[1,3,7,9], 5:[1,3,5,7,9], 6:[1,2,3,7,8,9] };
 const DIR = { 0:[1,0], 90:[0,1], 180:[-1,0], 270:[0,-1] };
@@ -535,6 +535,22 @@ function cabe(x, y, rot, salvo) {
 // Dos mitades unidas: mismo valor y pegadas canto con canto.
 // Regla de dominó: cada mitad admite UNA SOLA unión. La que ya tiene pareja
 // está gastada y no puede recibir otra ficha (eso era la trampa de la IA).
+// ¿Es un contacto de mesa válido? Punta con punta siempre (en línea o en
+// esquina). Costado con costado entre fichas PARALELAS solo si una es doble
+// (la excepción del doble: recibir una ficha paralela pegada a su lado).
+function contactoValido(f, g, p, q) {
+  // g es la ficha YA JUGADA. A una ficha normal solo se le entra por su
+  // punta (canto corto); por su costado largo solo se entra a un DOBLE.
+  // La esquina sigue valiendo: ahí es la punta de g la que toca el costado
+  // de la ficha nueva, no al revés.
+  const gx = q.x - p.x, gy = q.y - p.y;
+  const contactoHoriz = Math.abs(gx) > Math.abs(gy);
+  const gHoriz = rotN(g.rot) % 180 === 0;
+  const costadoG = (contactoHoriz !== gHoriz);   // se le entra por su lado largo
+  if (costadoG) return esDoble(g);
+  return true;
+}
+
 function unionEntre(f, g) {
   const a = mitades(f), b = mitades(g);
   for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) {
@@ -542,6 +558,7 @@ function unionEntre(f, g) {
     if (p.v !== q.v || !pegadas(p, q)) continue;
     if (f.usadas && f.usadas[i]) continue;      // mi mitad ya gastada
     if (g.usadas && g.usadas[j]) continue;      // la suya ya gastada
+    if (!contactoValido(f, g, p, q)) continue;  // ni de refilón en paralelo
     return { mia: i, suya: j };
   }
   return null;
@@ -576,6 +593,7 @@ function apretar(prueba, g) {
     if (p.v !== q.v) continue;
     if (prueba.usadas && prueba.usadas[i]) continue;
     if (g.usadas && g.usadas[j]) continue;
+    if (!contactoValido(prueba, g, p, q)) continue;
     const d = Math.hypot(p.x - q.x, p.y - q.y);
     if (d < dmin && pegadas(p, q)) { dmin = d; par = { p: p, q: q }; }
   }
@@ -603,7 +621,9 @@ function rozaGastada(fin, salvoG, u) {
     for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) {
       if (mf[i].v !== mg[j].v || !pegadas(mf[i], mg[j])) continue;
       if (g === salvoG && i === u.mia && j === u.suya) continue;  // la unión buena
-      return true;   // cualquier otro contacto de mismo número: fuera
+      // cualquier otro contacto de mismo número sobra: sería una segunda
+      // unión, o un pegote en paralelo que en la mesa no existe
+      return true;
     }
   }
   return false;
