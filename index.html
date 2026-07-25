@@ -281,7 +281,7 @@ body.light .card .name { color: var(--text); }
     <button class="btn" id="btn-online">Multijugador</button>
     <button class="btn btn-sec" id="btn-instalar" style="display:none">▾ Instalar app</button>
   </div>
-  <div class="ver-tag" id="ver-tag">v0.30.0</div>
+  <div class="ver-tag" id="ver-tag">v0.30.1</div>
 </div>
 
 <div id="screen-setup" class="screen">
@@ -383,7 +383,7 @@ body.light .card .name { color: var(--text); }
   window.addEventListener('error', quita);
 })();
 
-const VERSION = 'v0.30.0';
+const VERSION = 'v0.30.1';
 const $ = id => document.getElementById(id);
 const PUNTOS = { 0:[], 1:[5], 2:[1,9], 3:[1,5,9], 4:[1,3,7,9], 5:[1,3,5,7,9], 6:[1,2,3,7,8,9] };
 const DIR = { 0:[1,0], 90:[0,1], 180:[-1,0], 270:[0,-1] };
@@ -576,7 +576,7 @@ function conexion(f) {
   // como la soltaste, y girada 180. Así el costado de un doble la acepta
   // aunque la traigas al revés.
   for (const r of ranuras()) {
-    for (const rot of [f.rot, f.rot + 180]) {
+    for (const rot of [f.rot, f.rot + 90, f.rot + 180, f.rot + 270]) {
       const prueba = { a: f.a, b: f.b, x: f.x, y: f.y, rot: rot };
       const m = mitades(prueba);
       for (let i = 0; i < 2; i++) {
