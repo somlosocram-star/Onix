@@ -281,7 +281,7 @@ body.light .card .name { color: var(--text); }
     <button class="btn" id="btn-online">Multijugador</button>
     <button class="btn btn-sec" id="btn-instalar" style="display:none">▾ Instalar app</button>
   </div>
-  <div class="ver-tag" id="ver-tag">v0.34.0</div>
+  <div class="ver-tag" id="ver-tag">v0.35.0</div>
 </div>
 
 <div id="screen-setup" class="screen">
@@ -383,7 +383,7 @@ body.light .card .name { color: var(--text); }
   window.addEventListener('error', quita);
 })();
 
-const VERSION = 'v0.34.0';
+const VERSION = 'v0.35.0';
 const $ = id => document.getElementById(id);
 const PUNTOS = { 0:[], 1:[5], 2:[1,9], 3:[1,5,9], 4:[1,3,7,9], 5:[1,3,5,7,9], 6:[1,2,3,7,8,9] };
 const DIR = { 0:[1,0], 90:[0,1], 180:[-1,0], 270:[0,-1] };
@@ -612,28 +612,48 @@ function apretar(prueba, g) {
 }
 
 function conexion(f) {
-  const al = alinear(f);
-  if (!al) return null;
-  // se prueban todos los giros (los perpendiculares con un pequeño castigo)
-  // y de todos los enganches válidos gana EL MÁS CERCANO a donde soltaste
+  // COLOCACIÓN POR CONSTRUCCIÓN: para cada mitad libre de la cadena que
+  // case por número, se calcula el sitio EXACTO donde iría la ficha y se
+  // elige el más cercano a donde la soltaste (a menos de ~1,2 fichas).
+  // Sin rejillas ni tolerancias: o hay sitio o no lo hay.
   const giros = [
     { rot: rotN(f.rot), extra: 0 }, { rot: rotN(f.rot + 180), extra: 0 },
     { rot: rotN(f.rot + 90), extra: U * .8 }, { rot: rotN(f.rot + 270), extra: U * .8 }
   ];
   let mejor = null, mejorD = Infinity;
+  const fu = f.usadas || [false, false];
   for (const gi of giros) {
-    const prueba = { a: f.a, b: f.b, x: al.x, y: al.y, rot: gi.rot, usadas: f.usadas };
+    const dd = DIR[rotN(gi.rot)];
     for (const g of cadena) {
-      if (!unionEntre(prueba, g)) continue;
-      const fino = apretar(prueba, g);
-      if (!fino) continue;
-      if (!cabe(fino.x, fino.y, gi.rot, f)) continue;
-      // la unión que vale es la de la POSICIÓN FINAL, tras apretar
-      const fin = { a: f.a, b: f.b, x: fino.x, y: fino.y, rot: gi.rot, usadas: f.usadas };
-      const u2 = unionEntre(fin, g);
-      if (!u2) continue;
-      const d = Math.hypot(fino.x - f.x, fino.y - f.y) + gi.extra;
-      if (d < mejorD) { mejorD = d; mejor = { x: fino.x, y: fino.y, rot: gi.rot, con: g, u: u2 }; }
+      const mg = mitades(g);
+      const ug = g.usadas || [false, false];
+      for (let i = 0; i < 2; i++) {
+        if (fu[i]) continue;
+        const vi = i === 0 ? f.a : f.b;
+        for (let j = 0; j < 2; j++) {
+          if (ug[j]) continue;
+          if (vi !== mg[j].v) continue;
+          // direcciones por las que se puede entrar a esa mitad:
+          // ficha normal -> solo su punta (hacia fuera); doble -> sus 4 lados
+          const dirs = [];
+          if (esDoble(g)) dirs.push([1,0],[-1,0],[0,1],[0,-1]);
+          else {
+            const o = mg[1 - j];
+            dirs.push([Math.sign(mg[j].x - o.x), Math.sign(mg[j].y - o.y)]);
+          }
+          for (const d of dirs) {
+            // mi mitad debe caer a UNA ficha de la suya, en esa dirección
+            const px = mg[j].x + d[0] * U, py = mg[j].y + d[1] * U;
+            const s = i === 0 ? 1 : -1;
+            const cx = px + s * dd[0] * U / 2, cy = py + s * dd[1] * U / 2;
+            const dist = Math.hypot(cx - f.x, cy - f.y);
+            if (dist > U * 2.6) continue;          // demasiado lejos de donde soltaste
+            if (!cabe(cx, cy, gi.rot, f)) continue;
+            const nota = dist + gi.extra;
+            if (nota < mejorD) { mejorD = nota; mejor = { x: cx, y: cy, rot: gi.rot, con: g, u: { mia: i, suya: j } }; }
+          }
+        }
+      }
     }
   }
   return mejor;
@@ -1497,7 +1517,42 @@ clic('btn-empezar', nuevaPartida);
 clic('btn-siguiente', arrancarRonda);
 clic('btn-revancha', nuevaPartida);
 clic('btn-menu', () => { cerrarCarteles(); ir('screen-home'); });
-clic('salir', () => { bloqueo = true; cerrarCarteles(); cortar(); ir('screen-home'); });
+clic('salir', () => {
+  if (Date.now() - menuLargo < 900) return;   // fue pulsación larga: no salir
+  bloqueo = true; cerrarCarteles(); cortar(); ir('screen-home');
+});
+// pulsación larga en MENÚ: copia el estado exacto de la mesa para depurar
+let menuLargo = 0, menuTimer = null;
+(function () {
+  const el = document.getElementById('salir');
+  if (!el) return;
+  function empezar() { menuTimer = setTimeout(volcarEstado, 800); }
+  function soltar() { if (menuTimer) { clearTimeout(menuTimer); menuTimer = null; } }
+  el.addEventListener('touchstart', empezar); el.addEventListener('touchend', soltar);
+  el.addEventListener('mousedown', empezar); el.addEventListener('mouseup', soltar);
+  el.addEventListener('mouseleave', soltar);
+})();
+function volcarEstado() {
+  menuLargo = Date.now();
+  try {
+    const t = [];
+    t.push('ONIX ' + VERSION + ' mesa ' + mesa.clientWidth + 'x' + mesa.clientHeight + ' U' + U);
+    for (const g of cadena) {
+      const u = g.usadas || [false, false];
+      t.push('F ' + g.a + '/' + g.b + ' @' + Math.round(g.x) + ',' + Math.round(g.y) + ' r' + rotN(g.rot)
+        + ' u' + (u[0] ? 1 : 0) + (u[1] ? 1 : 0) + (g.salida ? ' S' : ''));
+    }
+    t.push('MANO ' + miMano().map(x => x.a + '/' + x.b).join(' '));
+    t.push('POZO ' + pozo.length + ' TURNO ' + turno);
+    const txt = t.join('\n');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(txt).then(function () {
+        $('aviso').innerHTML = '<b>estado copiado</b> · pégamelo en el chat';
+      }, function () { $('aviso').textContent = txt.slice(0, 120); });
+    } else { $('aviso').textContent = txt.slice(0, 120); }
+    if (navigator.vibrate) navigator.vibrate(30);
+  } catch (e) {}
+}
 
 clic('help-btn', () => $('tutorial').classList.add('visible'));
 clic('tut-cerrar', () => $('tutorial').classList.remove('visible'));
