@@ -281,7 +281,7 @@ body.light .card .name { color: var(--text); }
     <button class="btn" id="btn-online">Multijugador</button>
     <button class="btn btn-sec" id="btn-instalar" style="display:none">▾ Instalar app</button>
   </div>
-  <div class="ver-tag" id="ver-tag">v0.32.1</div>
+  <div class="ver-tag" id="ver-tag">v0.34.0</div>
 </div>
 
 <div id="screen-setup" class="screen">
@@ -383,7 +383,7 @@ body.light .card .name { color: var(--text); }
   window.addEventListener('error', quita);
 })();
 
-const VERSION = 'v0.32.1';
+const VERSION = 'v0.34.0';
 const $ = id => document.getElementById(id);
 const PUNTOS = { 0:[], 1:[5], 2:[1,9], 3:[1,5,9], 4:[1,3,7,9], 5:[1,3,5,7,9], 6:[1,2,3,7,8,9] };
 const DIR = { 0:[1,0], 90:[0,1], 180:[-1,0], 270:[0,-1] };
@@ -574,7 +574,7 @@ function alinear(f) {
     const d = Math.hypot(f.x - g.x, f.y - g.y);
     if (d < dmin) { dmin = d; cerca = g; }
   }
-  if (!cerca || dmin > U * 3.2) return null;
+  if (!cerca || dmin > U * 4.2) return null;
   const px = cerca.x + Math.round((f.x - cerca.x) / (U / 2)) * (U / 2);
   const py = cerca.y + Math.round((f.y - cerca.y) / (U / 2)) * (U / 2);
   return { x: px, y: py };
@@ -611,44 +611,32 @@ function apretar(prueba, g) {
   return { x: prueba.x + dx, y: prueba.y + dy };
 }
 
-// ¿La ficha, ya colocada, tocaría alguna mitad GASTADA de su mismo número?
-// Eso sería una segunda unión de rebote: no se permite.
-function rozaGastada(fin, salvoG, u) {
-  const mf = mitades(fin);
-  for (const g of cadena) {
-    const mg = mitades(g);
-    const ug = g.usadas || [false, false];
-    for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) {
-      if (mf[i].v !== mg[j].v || !pegadas(mf[i], mg[j])) continue;
-      if (g === salvoG && i === u.mia && j === u.suya) continue;  // la unión buena
-      // cualquier otro contacto de mismo número sobra: sería una segunda
-      // unión, o un pegote en paralelo que en la mesa no existe
-      return true;
-    }
-  }
-  return false;
-}
-
 function conexion(f) {
   const al = alinear(f);
   if (!al) return null;
-  // se prueba como la soltaste y girada 180 (el número que casa puede estar
-  // en la otra mitad); gana la primera que enganche
-  for (const rot of [rotN(f.rot), rotN(f.rot + 180)]) {
-    const prueba = { a: f.a, b: f.b, x: al.x, y: al.y, rot: rot, usadas: f.usadas };
+  // se prueban todos los giros (los perpendiculares con un pequeño castigo)
+  // y de todos los enganches válidos gana EL MÁS CERCANO a donde soltaste
+  const giros = [
+    { rot: rotN(f.rot), extra: 0 }, { rot: rotN(f.rot + 180), extra: 0 },
+    { rot: rotN(f.rot + 90), extra: U * .8 }, { rot: rotN(f.rot + 270), extra: U * .8 }
+  ];
+  let mejor = null, mejorD = Infinity;
+  for (const gi of giros) {
+    const prueba = { a: f.a, b: f.b, x: al.x, y: al.y, rot: gi.rot, usadas: f.usadas };
     for (const g of cadena) {
-      const u = unionEntre(prueba, g);
-      if (!u) continue;
-      // apretar hasta el tope contra la vecina
+      if (!unionEntre(prueba, g)) continue;
       const fino = apretar(prueba, g);
       if (!fino) continue;
-      if (!cabe(fino.x, fino.y, rot, f)) continue;
-      const fin = { a: f.a, b: f.b, x: fino.x, y: fino.y, rot: rot };
-      if (rozaGastada(fin, g, u)) continue;
-      return { x: fino.x, y: fino.y, rot: rot, con: g, u: u };
+      if (!cabe(fino.x, fino.y, gi.rot, f)) continue;
+      // la unión que vale es la de la POSICIÓN FINAL, tras apretar
+      const fin = { a: f.a, b: f.b, x: fino.x, y: fino.y, rot: gi.rot, usadas: f.usadas };
+      const u2 = unionEntre(fin, g);
+      if (!u2) continue;
+      const d = Math.hypot(fino.x - f.x, fino.y - f.y) + gi.extra;
+      if (d < mejorD) { mejorD = d; mejor = { x: fino.x, y: fino.y, rot: gi.rot, con: g, u: u2 }; }
     }
   }
-  return null;
+  return mejor;
 }
 
 function encajar(f, con) {
@@ -660,10 +648,18 @@ function anotarJugada(f, con) {
   f.fija = true;
   f.origen = con.con;
   f.usadas = f.usadas || [false, false];
-  if (con.u) {
-    f.usadas[con.u.mia] = true;
-    con.con.usadas = con.con.usadas || [false, false];
-    con.con.usadas[con.u.suya] = true;
+  // se consumen TODAS las uniones válidas de la posición final: si la ficha
+  // rellena un hueco y casa por los dos lados, gasta las dos (mesa real)
+  const mf = mitades(f);
+  for (const g of cadena) {
+    const mg = mitades(g);
+    g.usadas = g.usadas || [false, false];
+    for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) {
+      if (f.usadas[i] || g.usadas[j]) continue;
+      if (mf[i].v !== mg[j].v || !pegadas(mf[i], mg[j])) continue;
+      if (!contactoValido(f, g, mf[i], mg[j])) continue;
+      f.usadas[i] = true; g.usadas[j] = true;
+    }
   }
   f.el.classList.remove('viva');
   f.el.classList.add('jugada', 'recien');
@@ -1006,6 +1002,7 @@ function buscarEn(mano, quien) {
           let estilo = 0;
           const gHoriz = rotN(g.rot) % 180 === 0, fHoriz = prot % 180 === 0;
           if (esDoble(g)) estilo = (gHoriz !== fHoriz) ? 8 : -6;
+          else if (esDoble(t)) estilo = (gHoriz !== fHoriz) ? 8 : -4;   // un doble se cruza
           else estilo = (gHoriz === fHoriz) ? 4 : 0;
           const nota = estilo
                      + Math.min(borde, U*3) * 1.2
