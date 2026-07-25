@@ -281,7 +281,7 @@ body.light .card .name { color: var(--text); }
     <button class="btn" id="btn-online">Multijugador</button>
     <button class="btn btn-sec" id="btn-instalar" style="display:none">▾ Instalar app</button>
   </div>
-  <div class="ver-tag" id="ver-tag">v0.29.1</div>
+  <div class="ver-tag" id="ver-tag">v0.30.0</div>
 </div>
 
 <div id="screen-setup" class="screen">
@@ -383,7 +383,7 @@ body.light .card .name { color: var(--text); }
   window.addEventListener('error', quita);
 })();
 
-const VERSION = 'v0.29.1';
+const VERSION = 'v0.30.0';
 const $ = id => document.getElementById(id);
 const PUNTOS = { 0:[], 1:[5], 2:[1,9], 3:[1,5,9], 4:[1,3,7,9], 5:[1,3,5,7,9], 6:[1,2,3,7,8,9] };
 const DIR = { 0:[1,0], 90:[0,1], 180:[-1,0], 270:[0,-1] };
@@ -571,24 +571,30 @@ function cabe(x, y, rot, salvo) {
 // Se miran TODAS y gana la que deje la ficha más cerca de donde la soltaste:
 // así se respeta lo que querías hacer y no la primera que salga en la lista.
 function conexion(f) {
-  const m = mitades(f);
   let mejor = null, mejorD = Infinity;
+  // se prueban las dos orientaciones posibles de la ficha en cada ranura:
+  // como la soltaste, y girada 180. Así el costado de un doble la acepta
+  // aunque la traigas al revés.
   for (const r of ranuras()) {
-    for (let i = 0; i < 2; i++) {
-      if (m[i].v !== r.v) continue;
-      if (r.doble) {
-        const l = ladoDe(f, r.g);
-        if (l[0] !== r.d[0] || l[1] !== r.d[1]) continue;
-        const mg = mitades(r.g);
-        if (!pegadas(m[i], mg[0]) && !pegadas(m[i], mg[1])) continue;
-      } else {
-        if (!pegadas(m[i], r.base)) continue;
+    for (const rot of [f.rot, f.rot + 180]) {
+      const prueba = { a: f.a, b: f.b, x: f.x, y: f.y, rot: rot };
+      const m = mitades(prueba);
+      for (let i = 0; i < 2; i++) {
+        if (m[i].v !== r.v) continue;
+        if (r.doble) {
+          const l = ladoDe(prueba, r.g);
+          if (l[0] !== r.d[0] || l[1] !== r.d[1]) continue;
+          const mg = mitades(r.g);
+          if (!pegadas(m[i], mg[0]) && !pegadas(m[i], mg[1])) continue;
+        } else {
+          if (!pegadas(m[i], r.base)) continue;
+        }
+        const rf = rotFinal(f.a, f.b, r, rot);
+        const p = sitioEn(r, f.a, f.b, i, rf);
+        if (!cabe(p.x, p.y, rf, f)) continue;
+        const d = Math.hypot(p.x - f.x, p.y - f.y);
+        if (d < mejorD) { mejorD = d; mejor = { mia: i, r: r, rot: rf }; }
       }
-      const rf = rotFinal(f.a, f.b, r, f.rot);
-      const p = sitioEn(r, f.a, f.b, i, rf);
-      if (!cabe(p.x, p.y, rf, f)) continue;
-      const d = Math.hypot(p.x - f.x, p.y - f.y);
-      if (d < mejorD) { mejorD = d; mejor = { mia: i, r: r, rot: rf }; }
     }
   }
   return mejor;
@@ -603,9 +609,16 @@ function rotFinal(a, b, r, rot) {
   return Math.abs(r.d[0]) === 1 ? 90 : 0;
 }
 function sitioEn(r, a, b, mia, rot) {
+  // doble que entra: atravesado, a una ficha del extremo
   if (a === b) return { x: r.base.x + r.d[0]*U, y: r.base.y + r.d[1]*U };
   const dir = DIR[rotN(rot)];
   const s = mia === 0 ? -1 : 1;
+  // vecino de un doble: va CENTRADO sobre el eje del doble, sin el desvío de
+  // media ficha. Ese desvío es solo para engancharse a la mitad de una ficha
+  // normal, no al costado de un doble.
+  if (r.doble) {
+    return { x: r.base.x + r.d[0]*(U + U/2), y: r.base.y + r.d[1]*(U + U/2) };
+  }
   return { x: r.base.x + r.d[0]*U - s*dir[0]*U/2,
            y: r.base.y + r.d[1]*U - s*dir[1]*U/2 };
 }
