@@ -281,7 +281,7 @@ body.light .card .name { color: var(--text); }
     <button class="btn" id="btn-online">Multijugador</button>
     <button class="btn btn-sec" id="btn-instalar" style="display:none">▾ Instalar app</button>
   </div>
-  <div class="ver-tag" id="ver-tag">v0.31.0</div>
+  <div class="ver-tag" id="ver-tag">v0.31.1</div>
 </div>
 
 <div id="screen-setup" class="screen">
@@ -383,7 +383,7 @@ body.light .card .name { color: var(--text); }
   window.addEventListener('error', quita);
 })();
 
-const VERSION = 'v0.31.0';
+const VERSION = 'v0.31.1';
 const $ = id => document.getElementById(id);
 const PUNTOS = { 0:[], 1:[5], 2:[1,9], 3:[1,5,9], 4:[1,3,7,9], 5:[1,3,5,7,9], 6:[1,2,3,7,8,9] };
 const DIR = { 0:[1,0], 90:[0,1], 180:[-1,0], 270:[0,-1] };
@@ -556,16 +556,45 @@ function alinear(f) {
 
 // La jugada del humano: se alinea a la rejilla y, si en esa posición la
 // ficha queda unida a la cadena por número y cabe, es válida.
+// Aprieta la ficha contra su vecina hasta el contacto exacto, como cuando
+// deslizas una ficha en la mesa hasta que hace tope. Deja las mitades que
+// casan perfectamente pegadas y alineadas.
+function apretar(prueba, g) {
+  const ma = mitades(prueba), mb = mitades(g);
+  let par = null, dmin = Infinity;
+  for (const p of ma) for (const q of mb) {
+    if (p.v !== q.v) continue;
+    const d = Math.hypot(p.x - q.x, p.y - q.y);
+    if (d < dmin && pegadas(p, q)) { dmin = d; par = { p: p, q: q }; }
+  }
+  if (!par) return null;
+  const gx = par.q.x - par.p.x, gy = par.q.y - par.p.y;
+  let dx = 0, dy = 0;
+  if (Math.abs(gx) >= Math.abs(gy)) {
+    // contacto lateral: X exacto a una ficha de distancia, Y clavada igual
+    dx = gx - Math.sign(gx) * U;
+    dy = gy;
+  } else {
+    dx = gx;
+    dy = gy - Math.sign(gy) * U;
+  }
+  return { x: prueba.x + dx, y: prueba.y + dy };
+}
+
 function conexion(f) {
   const al = alinear(f);
   if (!al) return null;
   // se prueba como la soltaste y girada 180 (el número que casa puede estar
   // en la otra mitad); gana la primera que enganche
   for (const rot of [rotN(f.rot), rotN(f.rot + 180)]) {
-    if (!cabe(al.x, al.y, rot, f)) continue;
     const prueba = { a: f.a, b: f.b, x: al.x, y: al.y, rot: rot };
     for (const g of cadena) {
-      if (unidas(prueba, g)) return { x: al.x, y: al.y, rot: rot, con: g };
+      if (!unidas(prueba, g)) continue;
+      // apretar hasta el tope contra la vecina
+      const fino = apretar(prueba, g);
+      if (!fino) continue;
+      if (!cabe(fino.x, fino.y, rot, f)) continue;
+      return { x: fino.x, y: fino.y, rot: rot, con: g };
     }
   }
   return null;
@@ -895,23 +924,35 @@ function buscarEn(mano, quien) {
         if (ox === 0 && oy === 0) continue;
         const x = g.x + ox * (U / 2), y = g.y + oy * (U / 2);
         for (const rot of [0, 90]) {
-          if (!cabe(x, y, rot, null)) continue;
-          const prueba = { a: t.a, b: t.b, x: x, y: y, rot: rot };
-          if (!unidas(prueba, g)) continue;
+          // la propuesta pasa por LA MISMA puerta que la jugada humana:
+          // conexion() con imán y apriete. Lo que sale de aquí es exactamente
+          // lo que intentar() aceptará, sin discrepancias.
+          const cand = { a: t.a, b: t.b, x: x, y: y, rot: rot };
+          const con = conexion(cand);
+          if (!con || con.con !== g) continue;
+          const px = con.x, py = con.y, prot = con.rot;
+          if (false) continue;
           // nota del sitio: espacio alrededor, lejos del borde, cerca del centro
           let apinado = 0;
           for (const q of cadena) {
             if (q === g) continue;
-            if (Math.abs(x - q.x) < U*2.2 && Math.abs(y - q.y) < U*2.2) apinado++;
+            if (Math.abs(px - q.x) < U*2.2 && Math.abs(py - q.y) < U*2.2) apinado++;
           }
-          const borde = Math.min(x, y, w - x, hh - y);
-          const dCentro = Math.hypot(x - w/2, y - hh/2);
-          const nota = Math.min(borde, U*3) * 1.2
+          const borde = Math.min(px, py, w - px, hh - py);
+          const dCentro = Math.hypot(px - w/2, py - hh/2);
+          // costumbre de mesa: contra un doble, la ficha va perpendicular
+          // (en cruz); en una unión normal, en línea. Se premia, no se obliga.
+          let estilo = 0;
+          const gHoriz = rotN(g.rot) % 180 === 0, fHoriz = prot % 180 === 0;
+          if (esDoble(g)) estilo = (gHoriz !== fHoriz) ? 8 : -6;
+          else estilo = (gHoriz === fHoriz) ? 4 : 0;
+          const nota = estilo
+                     + Math.min(borde, U*3) * 1.2
                      - apinado * 10
                      - dCentro * .12
                      + (t.a + t.b) * .3
                      + Math.random() * 2;
-          if (nota > mejorNota) { mejorNota = nota; mejor = { idx: idx, t: t, x: x, y: y, rot: rot }; }
+          if (nota > mejorNota) { mejorNota = nota; mejor = { idx: idx, t: t, x: px, y: py, rot: prot }; }
         }
       }
     }
