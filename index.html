@@ -280,7 +280,7 @@ body.light .card .name { color: var(--text); }
     <button class="btn" id="btn-jugar">Un jugador</button>
     <button class="btn" id="btn-online">Multijugador</button>
   </div>
-  <div class="ver-tag" id="ver-tag">v0.25.0</div>
+  <div class="ver-tag" id="ver-tag">v0.26.0</div>
 </div>
 
 <div id="screen-setup" class="screen">
@@ -372,7 +372,7 @@ body.light .card .name { color: var(--text); }
 </div>
 <script>
 "use strict";
-const VERSION = 'v0.25.0';
+const VERSION = 'v0.26.0';
 const $ = id => document.getElementById(id);
 const PUNTOS = { 0:[], 1:[5], 2:[1,9], 3:[1,5,9], 4:[1,3,7,9], 5:[1,3,5,7,9], 6:[1,2,3,7,8,9] };
 const DIR = { 0:[1,0], 90:[0,1], 180:[-1,0], 270:[0,-1] };
@@ -815,7 +815,15 @@ function intentar(f) {
   if (turno !== yo || bloqueo || f.fija) return;
   const con = conexion(f);
   if (!con) {
-    if (cerca(f)) $('aviso').innerHTML = 'ahí <b>no casa</b> · prueba otro extremo';
+    if (cerca(f)) {
+      // ¿el número casa pero no hay hueco físico? avisar distinto
+      const m = mitades(f);
+      let casaAlgo = false;
+      for (const r of ranuras()) for (const mm of m) if (mm.v === r.v) casaAlgo = true;
+      $('aviso').innerHTML = casaAlgo
+        ? 'ese extremo está <b>sin hueco</b> · prueba el otro'
+        : 'ahí <b>no casa</b> · prueba otro extremo';
+    }
     return;
   }
   encajar(f, con);
@@ -950,11 +958,24 @@ function buscarEn(mano, quien) {
         const nueva = { a: t.a, b: t.b, x: p.x, y: p.y, rot: o.rot };
         const mm = mitades(nueva);
         const libreMitad = mm[1 - o.mia];
+        // Visión de dos casillas: en un caracol la de al lado está libre
+        // pero la siguiente no, y ahí es donde la IA se ahogaba sola.
         let aire = 0;
         for (const d2 of EJES) {
           const rr = rotDe(d2);
           if (rr === null) continue;
-          if (cabe(libreMitad.x + d2[0]*U*1.5, libreMitad.y + d2[1]*U*1.5, rr, null)) aire++;
+          const cerca = cabe(libreMitad.x + d2[0]*U*1.5, libreMitad.y + d2[1]*U*1.5, rr, null);
+          if (!cerca) continue;
+          aire += 1;
+          // ¿y una ficha más allá, en línea o girando?
+          let sigue = false;
+          for (const d3 of EJES) {
+            const rr3 = rotDe(d3);
+            if (rr3 === null) continue;
+            if (cabe(libreMitad.x + d2[0]*U*3.5 + d3[0]*U*1.5,
+                     libreMitad.y + d2[1]*U*3.5 + d3[1]*U*1.5, rr3, null)) { sigue = true; break; }
+          }
+          if (sigue) aire += 2;
         }
         const dCentro = Math.hypot(p.x - w/2, p.y - hh/2);
         // sitio despejado pero SIN irse a los bordes: gastar el borde es lo
@@ -978,10 +999,17 @@ function buscarEn(mano, quien) {
             }
           }
         }
-        const nota = lectura + aire * 14
+        // Cuenta cuántas fichas jugadas hay pegando alrededor del sitio: es
+        // la medida de "estar metiéndose en un rincón". Cuantas más, peor.
+        let apinado = 0;
+        for (const g of cadena) {
+          if (g === r.g) continue;
+          if (Math.abs(p.x - g.x) < U*2.2 && Math.abs(p.y - g.y) < U*2.2) apinado++;
+        }
+        const nota = lectura + aire * 16
+                   - apinado * 10
                    + Math.min(borde, U*3) * 1.1
-                   + Math.min(cercaOtra, U*2) * .4
-                   - dCentro * .10
+                   - dCentro * .12
                    + (t.a + t.b) * .3;
         if (nota > mejorNota) { mejorNota = nota; mejor = { idx: idx, t: t, x: p.x, y: p.y, rot: o.rot }; }
       }
