@@ -28,7 +28,7 @@
   --text: #f4f4f2; --muted: #76767c; --accent: #f4f4f2; --on-accent: #0b0b0c;
   --oro: #d6a85c; --fieltro: #16211c;
   --grain: .45; --vineta: rgba(0,0,0,.5);
-  --uu: 21px;
+  --uu: 24px;
 }
 body.light, html.pre-light body {
   --bg: #f3f2ee; --panel: #e7e6df; --panel-2: #eeede7; --line: #d2d0c6;
@@ -280,7 +280,7 @@ body.light .card .name { color: var(--text); }
     <button class="btn" id="btn-jugar">Un jugador</button>
     <button class="btn" id="btn-online">Multijugador</button>
   </div>
-  <div class="ver-tag" id="ver-tag">v0.24.0</div>
+  <div class="ver-tag" id="ver-tag">v0.25.0</div>
 </div>
 
 <div id="screen-setup" class="screen">
@@ -304,6 +304,10 @@ body.light .card .name { color: var(--text); }
 <div id="screen-online" class="screen">
   <div class="seal"><svg style="color:var(--accent)"><use href="#ico-domino"/></svg></div>
   <div class="subtitle">jugar con un amigo</div>
+  <div class="section-label" style="margin-top:.4rem">tu nombre</div>
+  <input id="nombre-in" class="mono" maxlength="10" autocomplete="off"
+    placeholder="tú" style="width:200px;text-align:center;font-size:1.1rem;letter-spacing:.14em;
+    padding:.55rem;background:var(--panel);border:1px solid var(--line);border-radius:8px;color:var(--text);outline:none;margin-bottom:1.4rem">
   <div class="btn-row">
     <button class="btn" id="btn-crear">Crear sala</button>
     <button class="btn" id="btn-unirse">Unirse</button>
@@ -368,7 +372,7 @@ body.light .card .name { color: var(--text); }
 </div>
 <script>
 "use strict";
-const VERSION = 'v0.24.0';
+const VERSION = 'v0.25.0';
 const $ = id => document.getElementById(id);
 const PUNTOS = { 0:[], 1:[5], 2:[1,9], 3:[1,5,9], 4:[1,3,7,9], 5:[1,3,5,7,9], 6:[1,2,3,7,8,9] };
 const DIR = { 0:[1,0], 90:[0,1], 180:[-1,0], 270:[0,-1] };
@@ -674,6 +678,7 @@ function baraja() {
 }
 
 function nuevaRonda() {
+  if (online) return;        // online: reparte el anfitrión, nadie baraja aquí
   leerU();
   fichas.forEach(f => f.el.remove());
   dorsosIA.forEach(d => d.remove());
@@ -1191,6 +1196,10 @@ let soyAnfitrion = false;
 let sonda = null;         // temporizador de consulta
 let ultimoTs = 0;
 
+function nombreJugador() {
+  const v = ($('nombre-in').value || '').trim().slice(0, 10);
+  return v || (soyAnfitrion ? 'Anfitrión' : 'Invitado');
+}
 function codigoNuevo() {
   const L = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
   let s = '';
@@ -1230,8 +1239,9 @@ function pintarSala(est) {
   let s = '';
   for (const k of ['0', '1']) {
     const j = js[k];
-    s += '<div class="fila"><span class="nm">' + (k === '0' ? 'anfitrión' : 'invitado') + '</span>'
-      + '<span class="tt">' + (j ? (j.n || 'listo') : '—') + '</span></div>';
+    const eti = k === (yo + '') ? 'tú' : (k === '0' ? 'anfitrión' : 'invitado');
+    s += '<div class="fila' + (k === (yo + '') ? ' lider' : '') + '"><span class="nm">' + eti + '</span>'
+      + '<span class="tt">' + (j ? (j.n || '—') : 'esperando') + '</span></div>';
   }
   $('sala-lista').innerHTML = s;
   const listos = js['0'] && js['1'];
@@ -1242,7 +1252,7 @@ function pintarSala(est) {
 async function accionCrear() {
   const c = codigoNuevo();
   try {
-    await crearSala(c, { estado: 'espera', jug: { 0: { n: 'anfitrión', ts: Date.now() } }, ts: Date.now() });
+    await crearSala(c, { estado: 'espera', jug: { 0: { n: nombreJugador(), ts: Date.now() } }, ts: Date.now() });
   } catch (e) { $('online-aviso').textContent = 'sin conexión'; return; }
   sala = c; soyAnfitrion = true; yo = 0;
   ir('screen-sala'); pintarSala(null); vigilar();
@@ -1255,7 +1265,7 @@ async function accionEntrar() {
   try { est = await leer(c); } catch (e) { $('online-aviso').textContent = 'sin conexión'; return; }
   if (!est) { $('online-aviso').textContent = 'esa sala no existe'; return; }
   if (est.jug && est.jug['1']) { $('online-aviso').textContent = 'la sala está llena'; return; }
-  try { await escribir(c, { jug: Object.assign({}, est.jug, { 1: { n: 'invitado', ts: Date.now() } }), ts: Date.now() }); }
+  try { await escribir(c, { jug: Object.assign({}, est.jug, { 1: { n: nombreJugador(), ts: Date.now() } }), ts: Date.now() }); }
   catch (e) { $('online-aviso').textContent = 'sin conexión'; return; }
   sala = c; soyAnfitrion = false; yo = 1;
   ir('screen-sala'); pintarSala(est); vigilar();
@@ -1304,6 +1314,10 @@ function aplicar(est) {
   if (!online) {                 // primera vez: se monta la partida
     online = true; nJug = 2; limite = est.limite || 100;
     totales = est.totales || [0, 0];
+    if (est.jug) {
+      NOMBRES[yo] = 'Tú';
+      NOMBRES[1 - yo] = (est.jug[(1 - yo) + ''] && est.jug[(1 - yo) + ''].n) || 'Rival';
+    }
     ir('screen-game');
     requestAnimationFrame(() => requestAnimationFrame(() => montar(est)));
     return;
@@ -1352,7 +1366,8 @@ function montar(est) {
   aplicarJugadas(est);
   turno = est.turno;
   $('m-tu').textContent = totales[0]; $('m-ia').textContent = totales[1];
-  $('lbl-eq0').textContent = 'tú'; $('lbl-eq1').textContent = 'rival';
+  $('lbl-eq0').textContent = 'tú';
+  $('lbl-eq1').textContent = (NOMBRES[1 - yo] || 'rival').toLowerCase();
   pintarPozo(); pintarChips(); cambioTurno(); arrancar();
 }
 
@@ -1400,6 +1415,11 @@ function ir(id) {
 }
 
 function arrancarRonda() {
+  if (online) {
+    cerrarCarteles();
+    if (soyAnfitrion) repartirOnline();
+    return;
+  }
   ronda++;
   cerrarCarteles();
   requestAnimationFrame(() => requestAnimationFrame(nuevaRonda));
