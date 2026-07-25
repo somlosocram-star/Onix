@@ -281,7 +281,7 @@ body.light .card .name { color: var(--text); }
     <button class="btn" id="btn-online">Multijugador</button>
     <button class="btn btn-sec" id="btn-instalar" style="display:none">▾ Instalar app</button>
   </div>
-  <div class="ver-tag" id="ver-tag">v0.30.1</div>
+  <div class="ver-tag" id="ver-tag">v0.30.2</div>
 </div>
 
 <div id="screen-setup" class="screen">
@@ -383,7 +383,7 @@ body.light .card .name { color: var(--text); }
   window.addEventListener('error', quita);
 })();
 
-const VERSION = 'v0.30.1';
+const VERSION = 'v0.30.2';
 const $ = id => document.getElementById(id);
 const PUNTOS = { 0:[], 1:[5], 2:[1,9], 3:[1,5,9], 4:[1,3,7,9], 5:[1,3,5,7,9], 6:[1,2,3,7,8,9] };
 const DIR = { 0:[1,0], 90:[0,1], 180:[-1,0], 270:[0,-1] };
@@ -590,7 +590,27 @@ function conexion(f) {
           if (!pegadas(m[i], r.base)) continue;
         }
         const rf = rotFinal(f.a, f.b, r, rot);
+        // La orientación final debe ser COHERENTE con la dirección de la
+        // ranura, o la ficha queda pegada de refilón y dislocada.
+        // - ficha normal en un extremo: va EN LÍNEA con la ranura (su eje
+        //   largo apunta en la dirección d).
+        // - doble: va atravesado (perpendicular a d).
+        const dir = DIR[rotN(rf)];
+        const enLinea = Math.abs(dir[0]*r.d[0] + dir[1]*r.d[1]) === 1;
+        if (f.a !== f.b && !enLinea) continue;      // normal debe ir en línea
+        if (f.a === f.b && enLinea) continue;        // doble debe ir cruzado
         const p = sitioEn(r, f.a, f.b, i, rf);
+        // el sitio final debe seguir tocando la ranura de verdad
+        const fin = { a: f.a, b: f.b, x: p.x, y: p.y, rot: rf };
+        const mf = mitades(fin);
+        let toca = false;
+        if (r.doble) {
+          const mg = mitades(r.g);
+          for (const mm of mf) if (mm.v === r.v && (pegadas(mm, mg[0]) || pegadas(mm, mg[1]))) toca = true;
+        } else {
+          for (const mm of mf) if (mm.v === r.v && pegadas(mm, r.base)) toca = true;
+        }
+        if (!toca) continue;
         if (!cabe(p.x, p.y, rf, f)) continue;
         const d = Math.hypot(p.x - f.x, p.y - f.y);
         if (d < mejorD) { mejorD = d; mejor = { mia: i, r: r, rot: rf }; }
