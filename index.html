@@ -281,7 +281,7 @@ body.light .card .name { color: var(--text); }
     <button class="btn" id="btn-online">Multijugador</button>
     <button class="btn btn-sec" id="btn-instalar" style="display:none">▾ Instalar app</button>
   </div>
-  <div class="ver-tag" id="ver-tag">v0.36.0</div>
+  <div class="ver-tag" id="ver-tag">v0.37.0</div>
 </div>
 
 <div id="screen-setup" class="screen">
@@ -383,7 +383,7 @@ body.light .card .name { color: var(--text); }
   window.addEventListener('error', quita);
 })();
 
-const VERSION = 'v0.36.0';
+const VERSION = 'v0.37.0';
 const $ = id => document.getElementById(id);
 const PUNTOS = { 0:[], 1:[5], 2:[1,9], 3:[1,5,9], 4:[1,3,7,9], 5:[1,3,5,7,9], 6:[1,2,3,7,8,9] };
 const DIR = { 0:[1,0], 90:[0,1], 180:[-1,0], 270:[0,-1] };
@@ -645,15 +645,37 @@ function conexion(f) {
             // LEY DEL DOBLE: si la ficha que entra es un doble, va SIEMPRE
             // atravesado — su eje perpendicular a la dirección de entrada.
             if (f.a === f.b && (dd[0] * d[0] + dd[1] * d[1]) !== 0) continue;
-            // mi mitad debe caer a UNA ficha de la suya, en esa dirección
-            const px = mg[j].x + d[0] * U, py = mg[j].y + d[1] * U;
-            const s = i === 0 ? 1 : -1;
-            const cx = px + s * dd[0] * U / 2, cy = py + s * dd[1] * U / 2;
-            const dist = Math.hypot(cx - f.x, cy - f.y);
-            if (dist > U * 2.6) continue;          // demasiado lejos de donde soltaste
-            if (!cabe(cx, cy, gi.rot, f)) continue;
-            const nota = dist + gi.extra;
-            if (nota < mejorD) { mejorD = nota; mejor = { x: cx, y: cy, rot: gi.rot, con: g, u: { mia: i, suya: j } }; }
+            // Un doble admite DOS entradas y las dos deben existir:
+            //  · CRUCE: la ficha entra perpendicular, centrada en el eje del
+            //    doble (el cruce clásico del dominó).
+            //  · PARALELA: la ficha entra en línea con el doble, pegada a su
+            //    costado y alineada con él (para escapar de un borde).
+            // El cruce se mide desde el centro del doble; la paralela desde
+            // la mitad concreta. Se prueban ambas y gana la más cercana.
+            // Cada entrada usa SU base: el cruce se mide desde el centro del
+            // doble (queda centrado, como debe); la paralela desde la mitad
+            // (queda alineada al costado). Mezclarlas producía el pegote
+            // escalonado a media altura.
+            let bases;
+            if (esDoble(g)) {
+              const cruza = (rotN(gi.rot) % 180) !== (rotN(g.rot) % 180);
+              bases = cruza ? [[g.x, g.y]] : [[mg[j].x, mg[j].y]];
+            } else {
+              bases = [[mg[j].x, mg[j].y]];
+            }
+            for (const b of bases) {
+              const px = b[0] + d[0] * U, py = b[1] + d[1] * U;
+              const s = i === 0 ? 1 : -1;
+              const cx = px + s * dd[0] * U / 2, cy = py + s * dd[1] * U / 2;
+              const dist = Math.hypot(cx - f.x, cy - f.y);
+              if (dist > U * 2.6) continue;        // demasiado lejos de donde soltaste
+              if (!cabe(cx, cy, gi.rot, f)) continue;
+              // el sitio construido debe tocar de verdad la mitad elegida
+              const fin = { a: f.a, b: f.b, x: cx, y: cy, rot: gi.rot };
+              if (!pegadas(mitades(fin)[i], mg[j])) continue;
+              const nota = dist + gi.extra;
+              if (nota < mejorD) { mejorD = nota; mejor = { x: cx, y: cy, rot: gi.rot, con: g, u: { mia: i, suya: j } }; }
+            }
           }
         }
       }
@@ -665,6 +687,7 @@ function conexion(f) {
 function encajar(f, con) {
   f.x = con.x; f.y = con.y; f.rot = con.rot;
   dentro(f);
+  girar(f);   // el DIBUJO debe reflejar el giro final del modelo, siempre
 }
 
 function anotarJugada(f, con) {
