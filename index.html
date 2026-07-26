@@ -282,7 +282,7 @@ body.light .card .name { color: var(--text); }
     <button class="btn" id="btn-online">Multijugador</button>
     <button class="btn btn-sec" id="btn-instalar" style="display:none">▾ Instalar app</button>
   </div>
-  <div class="ver-tag" id="ver-tag">v0.40.0</div>
+  <div class="ver-tag" id="ver-tag">v0.41.0</div>
 </div>
 
 <div id="screen-setup" class="screen">
@@ -384,7 +384,7 @@ body.light .card .name { color: var(--text); }
   window.addEventListener('error', quita);
 })();
 
-const VERSION = 'v0.40.0';
+const VERSION = 'v0.41.0';
 const $ = id => document.getElementById(id);
 const PUNTOS = { 0:[], 1:[5], 2:[1,9], 3:[1,5,9], 4:[1,3,7,9], 5:[1,3,5,7,9], 6:[1,2,3,7,8,9] };
 const DIR = { 0:[1,0], 90:[0,1], 180:[-1,0], 270:[0,-1] };
@@ -453,6 +453,56 @@ function animar() {
   if (vivo || arrastre) requestAnimationFrame(animar); else animando = false;
 }
 function arrancar() { if (!animando) { animando = true; requestAnimationFrame(animar); } }
+
+/* ============================================================ rutas
+   La mesa tiene dos caminos que salen de la ficha central, uno por cada
+   extremo, y se enroscan en espiral cada uno por su mitad:
+
+     · camino 1 → derecha, sube, izquierda, baja hasta cerca del centro, derecha
+     · camino 2 → izquierda, baja, derecha, sube hasta cerca del centro, izquierda
+
+   No son una obligación: son la referencia que hace que la mesa crezca
+   ordenada en vez de dispararse en cualquier dirección.
+   ============================================================ */
+let RUTAS = null, rutasFirma = '';
+
+function calcularRutas() {
+  const W = mesa.clientWidth, H = mesa.clientHeight;
+  const firma = W + 'x' + H + 'x' + U;
+  if (RUTAS && rutasFirma === firma) return RUTAS;
+  rutasFirma = firma;
+  const m = U * 1.7;                    // margen hasta el borde
+  const cx = Math.round(W / 2), cy = Math.round(H * .46);   // la ficha de salida
+  const d = U * 2.4;                    // separación de la vuelta interior
+  RUTAS = [
+    // camino 1: se enrosca por ARRIBA
+    [[cx, cy], [W - m, cy], [W - m, m], [m, m], [m, cy - d], [W - m - U * 2, cy - d]],
+    // camino 2: se enrosca por ABAJO
+    [[cx, cy], [m, cy], [m, H - m], [W - m, H - m], [W - m, cy + d], [m + U * 2, cy + d]]
+  ];
+  return RUTAS;
+}
+
+// distancia de un punto al segmento AB
+function distSeg(x, y, A, B) {
+  const vx = B[0] - A[0], vy = B[1] - A[1];
+  const wx = x - A[0], wy = y - A[1];
+  const L = vx * vx + vy * vy;
+  let t = L ? (wx * vx + wy * vy) / L : 0;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(x - (A[0] + vx * t), y - (A[1] + vy * t));
+}
+
+// ¿cuánto se aleja este sitio del camino más cercano?
+function fueraDeRuta(x, y) {
+  const rs = calcularRutas();
+  let mejor = Infinity;
+  for (const r of rs) for (let i = 0; i < r.length - 1; i++) {
+    const d = distSeg(x, y, r[i], r[i + 1]);
+    if (d < mejor) mejor = d;
+  }
+  return mejor;
+}
 
 /* ============================================================ geometría */
 function medios(rot) {
@@ -690,7 +740,10 @@ function conexion(f) {
                 // Lo normal contra un doble es CRUZARLO. La paralela pegada
                 // al costado es el recurso para escapar de un borde, así que
                 // solo gana cuando el cruce no cabe.
-                const nota = dist + gi.extra + (paralelaADoble ? U * 2.2 : 0);
+                // entre sitios parecidos gana el que sigue el camino, pero
+                // manda dónde has soltado la ficha: el peso es suave
+                const nota = dist + gi.extra + (paralelaADoble ? U * 2.2 : 0)
+                           + fueraDeRuta(cx, cy) * .35;
                 if (nota < mejorD) { mejorD = nota; mejor = { x: cx, y: cy, rot: gi.rot, con: g, u: { mia: i, suya: j } }; }
               }
             }
@@ -1124,10 +1177,13 @@ function buscarEn(mano, quien) {
           if (esDoble(g)) estilo = (gHoriz !== fHoriz) ? 8 : -6;
           else if (esDoble(t)) estilo = (gHoriz !== fHoriz) ? 8 : -4;   // un doble se cruza
           else estilo = (gHoriz === fHoriz) ? 4 : 0;
+          // El camino gobierna la forma de la mesa. El premio por alejarse
+          // del borde se baja mucho: antes empujaba al centro y peleaba con
+          // la ruta, que precisamente pasa cerca de los bordes.
           const nota = estilo
-                     + Math.min(borde, U*3) * 1.2
+                     - fueraDeRuta(px, py) * 2.6      // seguir el camino
+                     + Math.min(borde, U*2) * .35
                      - apinado * 10
-                     - dCentro * .12
                      + (t.a + t.b) * .3
                      + Math.random() * 2;
           if (nota > mejorNota) { mejorNota = nota; mejor = { idx: idx, t: t, x: px, y: py, rot: prot }; }
