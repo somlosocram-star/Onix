@@ -282,7 +282,7 @@ body.light .card .name { color: var(--text); }
     <button class="btn" id="btn-online">Multijugador</button>
     <button class="btn btn-sec" id="btn-instalar" style="display:none">▾ Instalar app</button>
   </div>
-  <div class="ver-tag" id="ver-tag">v0.38.0</div>
+  <div class="ver-tag" id="ver-tag">v0.39.0</div>
 </div>
 
 <div id="screen-setup" class="screen">
@@ -384,7 +384,7 @@ body.light .card .name { color: var(--text); }
   window.addEventListener('error', quita);
 })();
 
-const VERSION = 'v0.38.0';
+const VERSION = 'v0.39.0';
 const $ = id => document.getElementById(id);
 const PUNTOS = { 0:[], 1:[5], 2:[1,9], 3:[1,5,9], 4:[1,3,7,9], 5:[1,3,5,7,9], 6:[1,2,3,7,8,9] };
 const DIR = { 0:[1,0], 90:[0,1], 180:[-1,0], 270:[0,-1] };
@@ -665,17 +665,25 @@ function conexion(f) {
               bases = [[mg[j].x, mg[j].y]];
             }
             for (const b of bases) {
-              const px = b[0] + d[0] * U, py = b[1] + d[1] * U;
-              const s = i === 0 ? 1 : -1;
-              const cx = px + s * dd[0] * U / 2, cy = py + s * dd[1] * U / 2;
-              const dist = Math.hypot(cx - f.x, cy - f.y);
-              if (dist > U * 2.6) continue;        // demasiado lejos de donde soltaste
-              if (!cabe(cx, cy, gi.rot, f)) continue;
-              // el sitio construido debe tocar de verdad la mitad elegida
-              const fin = { a: f.a, b: f.b, x: cx, y: cy, rot: gi.rot };
-              if (!pegadas(mitades(fin)[i], mg[j])) continue;
-              const nota = dist + gi.extra;
-              if (nota < mejorD) { mejorD = nota; mejor = { x: cx, y: cy, rot: gi.rot, con: g, u: { mia: i, suya: j } }; }
+              // Separación entre la base y el centro de la ficha: depende de
+              // si la vecina es doble y de cómo entra. Se prueban las tres
+              // posibles y el contacto real decide cuál vale.
+              for (const D of [U / 2, U, U * 1.5]) {
+                const px = b[0] + d[0] * D, py = b[1] + d[1] * D;
+                // Un DOBLE va CENTRADO en el eje de la cadena: sus dos mitades
+                // valen lo mismo, así que no se desplaza hacia ninguna. Ese
+                // desvío de media ficha era lo que dejaba dobles descolocados.
+                const lat = (f.a === f.b) ? 0 : (i === 0 ? U / 2 : -U / 2);
+                const cx = px + lat * dd[0], cy = py + lat * dd[1];
+                const dist = Math.hypot(cx - f.x, cy - f.y);
+                if (dist > U * 2.6) continue;      // demasiado lejos de donde soltaste
+                if (!cabe(cx, cy, gi.rot, f)) continue;
+                // el sitio construido debe tocar de verdad la mitad elegida
+                const fin = { a: f.a, b: f.b, x: cx, y: cy, rot: gi.rot };
+                if (!pegadas(mitades(fin)[i], mg[j])) continue;
+                const nota = dist + gi.extra;
+                if (nota < mejorD) { mejorD = nota; mejor = { x: cx, y: cy, rot: gi.rot, con: g, u: { mia: i, suya: j } }; }
+              }
             }
           }
         }
@@ -726,6 +734,55 @@ function valoresAbiertos() {
     if (!u[1]) s.add(g.b);
   }
   return s;
+}
+
+// La mesa está MUERTA cuando de todos los números abiertos ya están jugadas
+// las siete fichas que los llevan: nadie podrá casar nunca, ni robando. Es
+// información pública (las fichas de la mesa se ven), así que se puede cerrar
+// sin obligar a nadie a robar en balde.
+// ¿Esa mitad libre tiene sitio físico donde recibir una ficha? En mesa libre
+// una mitad puede quedar sin gastar pero rodeada de fichas: está viva en el
+// papel y muerta en la mesa. Sin esto, el juego pide robar para nada.
+function mitadConHueco(g, j) {
+  const mg = mitades(g);
+  let dirs;
+  if (esDoble(g)) dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+  else { const o = mg[1-j]; dirs = [[Math.sign(mg[j].x-o.x), Math.sign(mg[j].y-o.y)]]; }
+  for (const d of dirs) for (const rot of [0, 90]) {
+    const dd = DIR[rot];
+    for (const D of [U/2, U, U*1.5]) for (const lat of [0, U/2, -U/2]) {
+      const cx = mg[j].x + d[0]*D + lat*dd[0], cy = mg[j].y + d[1]*D + lat*dd[1];
+      if (!cabe(cx, cy, rot, null)) continue;
+      const mf = mitades({ a: 0, b: 0, x: cx, y: cy, rot: rot });
+      for (const pp of mf) if (pegadas(pp, mg[j])) return true;
+    }
+  }
+  return false;
+}
+
+// Valores que de verdad siguen en juego: mitad libre Y con hueco donde jugar.
+function valoresVivos() {
+  const s = new Set();
+  for (const g of cadena) {
+    const u = g.usadas || [false, false];
+    for (let j = 0; j < 2; j++)
+      if (!u[j] && mitadConHueco(g, j)) s.add(j === 0 ? g.a : g.b);
+  }
+  return s;
+}
+
+function mesaMuerta() {
+  if (!cadena.length) return false;
+  const abiertos = valoresVivos();
+  if (!abiertos.size) return true;
+  for (const n of abiertos) {
+    for (let o = 0; o <= 6; o++) {
+      const a = Math.min(n, o), b = Math.max(n, o);
+      const jugada = cadena.some(g => (Math.min(g.a, g.b) === a && Math.max(g.a, g.b) === b));
+      if (!jugada) return false;      // aún queda una ficha con ese número
+    }
+  }
+  return true;
 }
 
 // ¿Te casa algún número, aunque no haya sitio?
@@ -882,6 +939,11 @@ function pintarChips() {
 function cambioTurno() {
   robos = 0;
   pintarPozo(); pintarChips();
+  // Mesa cerrada de verdad: ningún número abierto sigue vivo. Se cierra sin
+  // obligar a robar. Un dominó (mano vacía) siempre tiene prioridad.
+  let manoVacia = false;
+  for (let p = 0; p < nJug; p++) if (!manoDe(p).length) manoVacia = true;
+  if (!bloqueo && !manoVacia && mesaMuerta()) { motivoCierre = 'agotado'; cerrarPorPuntos(); return; }
   if (turno === yo) {
     $('m-turno').textContent = 'tu turno';
     sTurno();
@@ -1095,10 +1157,9 @@ function cerrarPorPuntos() {
     motivoCierre = alguno ? 'sitio' : 'numeros';
   }
   bloqueo = true;
-  // gana el equipo que menos puntos tenga en la mano
-  const eq = [0, 0];
-  for (let p = 0; p < nJug; p++) eq[equipo(p)] += manoDe(p).reduce((s,t) => s + t.a + t.b, 0);
-  setTimeout(() => finRonda(eq[0] <= eq[1] ? 0 : 1, 'cierre'), 900);
+  // En un cierre no gana nadie: cada bando suma los puntos que le quedan.
+  // Solo se restan 5 cuando alguien se queda sin fichas.
+  setTimeout(() => finRonda(null, 'cierre'), 900);
 }
 /* ============================================================ arrastre */
 function fichaEn(px, py) {
@@ -1348,14 +1409,19 @@ function finRonda(ganador, como) {
     $('ov-fin').classList.add('visible');
     (campeon === 0 ? sGana : sPierde)();
   } else {
-    $('r-t').innerHTML = ganador === 0 ? '<em>Ronda vuestra</em>' : '<em>Ronda de ' + nom[1] + '</em>';
-    if (nJug === 2) $('r-t').innerHTML = ganador === 0 ? '<em>Ronda tuya</em>' : '<em>Ronda de Iris</em>';
+    if (ganador === null) $('r-t').innerHTML = '<em>Ronda cerrada</em>';
+    else {
+      $('r-t').innerHTML = ganador === 0 ? '<em>Ronda vuestra</em>' : '<em>Ronda de ' + nom[1] + '</em>';
+      if (nJug === 2) $('r-t').innerHTML = ganador === 0 ? '<em>Ronda tuya</em>' : '<em>Ronda de Iris</em>';
+    }
     const porQue = como === 'dominó' ? 'dominó'
-      : (motivoCierre === 'sitio' ? 'cierre · sin sitio en la mesa' : 'cierre · nadie casa');
+      : motivoCierre === 'agotado' ? 'cierre · no queda ese número · nadie gana'
+      : motivoCierre === 'sitio' ? 'cierre · sin sitio en la mesa · nadie gana'
+      : 'cierre · nadie casa · nadie gana';
     $('r-s').textContent = porQue + ' · ronda ' + ronda + ' · a ' + limite;
     $('r-tabla').innerHTML = tablaHTML(delta, nom);
     $('ov-ronda').classList.add('visible');
-    (ganador === 0 ? sGana : sPierde)();
+    if (ganador !== null) (ganador === 0 ? sGana : sPierde)();
   }
 }
 
