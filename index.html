@@ -101,7 +101,9 @@ html.pre-light #app-splash { background: #f3f2ee; }
 }
 body.light .splash-seal { box-shadow: inset 0 0 40px rgba(0,0,0,.06), 0 0 80px rgba(0,0,0,.05); }
 .splash-seal::after { content: ''; position: absolute; border-radius: 50%; border: 1px dotted var(--muted); inset: -14px; animation: ringSpin 9s linear infinite; opacity: .6; }
-.splash-seal svg { width: 78px; height: 78px; animation: glyphDrop .7s cubic-bezier(.3,1.4,.5,1) both; animation-delay: .45s; }
+.splash-seal img { width: 100%; height: 100%; border-radius: 50%; display: block; animation: glyphDrop .7s cubic-bezier(.3,1.4,.5,1) both; animation-delay: .45s; }
+.seal img { width: 100%; height: 100%; border-radius: 50%; display: block; }
+.seal.marca, .splash-seal.marca { border: none; box-shadow: none; }
 @keyframes sealMint { 0%{opacity:0;transform:scale(.3) rotateY(180deg);} 60%{opacity:1;transform:scale(1.08);} 100%{opacity:1;transform:scale(1);} }
 @keyframes glyphDrop { 0%{opacity:0;transform:translateY(-34px) scale(1.4);} 70%{opacity:1;transform:translateY(3px) scale(.96);} 100%{opacity:1;transform:none;} }
 @keyframes ringSpin { to { transform: rotate(360deg); } }
@@ -114,8 +116,7 @@ body.light .splash-seal { box-shadow: inset 0 0 40px rgba(0,0,0,.06), 0 0 80px r
 body.light .seal { box-shadow: inset 0 0 20px rgba(0,0,0,.05); }
 .seal::after { content: ''; position: absolute; border-radius: 50%; border: 1px dotted var(--muted); inset: -8px; opacity: .45; }
 .seal svg { width: 38px; height: 38px; }
-.title { font-size: clamp(2.4rem,9vw,4.2rem); font-weight: 500; font-style: italic; line-height: .92; margin-bottom: .2rem; }
-.title span { display: block; font-style: normal; font-weight: 700; letter-spacing: -.02em; }
+.title { font-size: clamp(2.8rem,11vw,4.6rem); font-weight: 600; font-style: italic; line-height: 1; margin-bottom: .2rem; letter-spacing: .01em; }
 .subtitle { font-family: 'IBM Plex Mono', monospace; font-size: .62rem; letter-spacing: .5em; color: var(--muted); margin: 1rem 0 1.9rem; text-transform: uppercase; display: flex; align-items: center; gap: .8rem; }
 .subtitle::before, .subtitle::after { content: '·'; font-size: 1.4rem; opacity: .6; }
 .btn { background: transparent; border: 1px solid var(--accent); color: var(--accent); padding: 1rem 2rem; font-family: 'IBM Plex Mono', monospace; font-size: .75rem; letter-spacing: .35em; cursor: pointer; text-transform: uppercase; transition: all .2s; min-width: 230px; }
@@ -269,23 +270,23 @@ body.light .card .name { color: var(--text); }
 </div>
 
 <div id="app-splash">
-  <div class="splash-seal"><svg viewBox="0 0 64 64" style="color:var(--accent)"><use href="#ico-domino"/></svg></div>
+  <div class="splash-seal marca"><img src="sello.png" alt=""></div>
 </div>
 
 <div id="screen-home" class="screen visible">
-  <div class="seal"><svg style="color:var(--accent)"><use href="#ico-domino"/></svg></div>
-  <div class="title"><em>Ó</em><span>nix</span></div>
+  <div class="seal marca"><img src="sello.png" alt=""></div>
+  <div class="title">Ónix</div>
   <div class="subtitle">dominó</div>
   <div class="btn-row">
     <button class="btn" id="btn-jugar">Un jugador</button>
     <button class="btn" id="btn-online">Multijugador</button>
     <button class="btn btn-sec" id="btn-instalar" style="display:none">▾ Instalar app</button>
   </div>
-  <div class="ver-tag" id="ver-tag">v0.37.0</div>
+  <div class="ver-tag" id="ver-tag">v0.38.0</div>
 </div>
 
 <div id="screen-setup" class="screen">
-  <div class="seal"><svg style="color:var(--accent)"><use href="#ico-domino"/></svg></div>
+  <div class="seal marca"><img src="sello.png" alt=""></div>
   <div class="subtitle">preparar partida</div>
   <div class="section-label">modo</div>
   <div class="cards" id="modo-cards">
@@ -303,7 +304,7 @@ body.light .card .name { color: var(--text); }
 </div>
 
 <div id="screen-online" class="screen">
-  <div class="seal"><svg style="color:var(--accent)"><use href="#ico-domino"/></svg></div>
+  <div class="seal marca"><img src="sello.png" alt=""></div>
   <div class="subtitle">jugar con un amigo</div>
   <div class="section-label" style="margin-top:.4rem">tu nombre</div>
   <input id="nombre-in" class="mono" maxlength="10" autocomplete="off"
@@ -325,7 +326,7 @@ body.light .card .name { color: var(--text); }
 </div>
 
 <div id="screen-sala" class="screen">
-  <div class="seal"><svg style="color:var(--accent)"><use href="#ico-domino"/></svg></div>
+  <div class="seal marca"><img src="sello.png" alt=""></div>
   <div class="subtitle">sala</div>
   <div id="sala-codigo" class="mono" style="font-size:2.6rem;letter-spacing:.4em;margin-bottom:.3rem">····</div>
   <div class="section-label" id="sala-estado">esperando</div>
@@ -354,7 +355,7 @@ body.light .card .name { color: var(--text); }
 </div>
 
 <div id="ov-ronda" class="ov">
-  <div class="seal"><svg style="color:var(--accent)"><use href="#ico-domino"/></svg></div>
+  <div class="seal marca"><img src="sello.png" alt=""></div>
   <div class="t" id="r-t">—</div>
   <div class="s" id="r-s">—</div>
   <div class="tabla" id="r-tabla"></div>
@@ -362,7 +363,7 @@ body.light .card .name { color: var(--text); }
 </div>
 
 <div id="ov-fin" class="ov">
-  <div class="seal"><svg style="color:var(--accent)"><use href="#ico-domino"/></svg></div>
+  <div class="seal marca"><img src="sello.png" alt=""></div>
   <div class="t" id="f-t">—</div>
   <div class="s" id="f-s">—</div>
   <div class="tabla" id="f-tabla"></div>
@@ -383,7 +384,7 @@ body.light .card .name { color: var(--text); }
   window.addEventListener('error', quita);
 })();
 
-const VERSION = 'v0.37.0';
+const VERSION = 'v0.38.0';
 const $ = id => document.getElementById(id);
 const PUNTOS = { 0:[], 1:[5], 2:[1,9], 3:[1,5,9], 4:[1,3,7,9], 5:[1,3,5,7,9], 6:[1,2,3,7,8,9] };
 const DIR = { 0:[1,0], 90:[0,1], 180:[-1,0], 270:[0,-1] };
@@ -1185,6 +1186,104 @@ window.addEventListener('mousemove', e => { if (arrastre && arrastre.id === 'rat
 window.addEventListener('mouseup', () => { if (arrastre && arrastre.id === 'raton') soltar(); });
 
 
+/* ============================================================ música
+   menu.mp3 en los menús; mus1-3 se turnan al azar durante la partida.
+   Todo va dentro de try: la música nunca debe poder tumbar el juego.
+   ============================================================ */
+const MUS_JUEGO = ['mus1.mp3', 'mus2.mp3', 'mus3.mp3'];
+const VOL_MENU = .42, VOL_JUEGO = .30;
+let pMenu = null, pJuego = null, ultimaPista = -1, musicaViva = false;
+
+function nuevaPista(src, bucle, vol) {
+  try {
+    const a = new Audio(src);
+    a.loop = !!bucle; a.volume = 0; a.preload = 'none';
+    a.dataset.vol = vol;
+    return a;
+  } catch (e) { return null; }
+}
+
+// fundido suave de volumen; al llegar a 0 se puede pausar
+function fundir(a, destino, ms, alAcabar) {
+  if (!a) return;
+  try {
+    const paso = 50, n = Math.max(1, Math.round(ms / paso));
+    const ini = a.volume, dif = destino - ini;
+    let i = 0;
+    if (a._f) clearInterval(a._f);
+    a._f = setInterval(() => {
+      i++;
+      try { a.volume = Math.min(1, Math.max(0, ini + dif * (i / n))); } catch (e) {}
+      if (i >= n) { clearInterval(a._f); a._f = null; if (alAcabar) alAcabar(); }
+    }, paso);
+  } catch (e) {}
+}
+
+function tocar(a) {
+  if (!a) return;
+  try { const p = a.play(); if (p && p.catch) p.catch(function () {}); } catch (e) {}
+}
+
+// una pista de partida al azar, nunca la misma dos veces seguidas
+function siguienteDeJuego() {
+  let i = (Math.random() * MUS_JUEGO.length) | 0;
+  if (MUS_JUEGO.length > 1 && i === ultimaPista) i = (i + 1) % MUS_JUEGO.length;
+  ultimaPista = i;
+  return MUS_JUEGO[i];
+}
+
+function musicaJuego() {
+  if (!sonido || !musicaViva) return;
+  try {
+    if (pMenu) fundir(pMenu, 0, 700, () => { try { pMenu.pause(); } catch (e) {} });
+    if (pJuego && !pJuego.paused) return;          // ya suena una
+    pJuego = nuevaPista(siguienteDeJuego(), false, VOL_JUEGO);
+    if (!pJuego) return;
+    pJuego.addEventListener('ended', () => {        // encadena otra al azar
+      pJuego = null;
+      if (sonido && musicaViva && document.body.classList.contains('in-game')) musicaJuego();
+    });
+    tocar(pJuego);
+    fundir(pJuego, VOL_JUEGO, 900);
+  } catch (e) {}
+}
+
+function musicaMenu() {
+  if (!sonido || !musicaViva) return;
+  try {
+    if (pJuego) { const v = pJuego; fundir(v, 0, 600, () => { try { v.pause(); } catch (e) {} }); pJuego = null; }
+    if (!pMenu) pMenu = nuevaPista('menu.mp3', true, VOL_MENU);
+    if (!pMenu) return;
+    tocar(pMenu);
+    fundir(pMenu, VOL_MENU, 900);
+  } catch (e) {}
+}
+
+function pararMusica() {
+  try {
+    for (const a of [pMenu, pJuego]) if (a) fundir(a, 0, 400, () => { try { a.pause(); } catch (e) {} });
+  } catch (e) {}
+}
+
+function reanudarMusica() {
+  if (!sonido) return;
+  if (document.body.classList.contains('in-game')) musicaJuego(); else musicaMenu();
+}
+
+// los navegadores no dejan sonar nada hasta el primer toque del usuario
+function despertarMusica() {
+  if (musicaViva) return;
+  musicaViva = true;
+  reanudarMusica();
+}
+document.addEventListener('pointerdown', despertarMusica, { once: true });
+document.addEventListener('touchstart', despertarMusica, { once: true });
+
+// al salir de la app se calla; al volver, sigue
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) pararMusica(); else reanudarMusica();
+});
+
 /* ============================================================ sonido */
 let actx = null;
 function son(f, d, tipo) {
@@ -1487,6 +1586,7 @@ function ir(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('visible'));
   $(id).classList.add('visible');
   document.body.classList.toggle('in-game', id === 'screen-game');
+  if (id === 'screen-game') musicaJuego(); else musicaMenu();
 }
 
 function arrancarRonda() {
@@ -1593,6 +1693,7 @@ $('sound-toggle').addEventListener('click', () => {
   sonido = !sonido;
   $('sound-toggle').classList.toggle('muted', !sonido);
   try { localStorage.setItem('onix_sonido', sonido ? '1' : '0'); } catch (e) {}
+  if (sonido) { musicaViva = true; reanudarMusica(); } else pararMusica();
 });
 window.addEventListener('resize', () => { if (!arrastre) { leerU(); arrancar(); } });
 
