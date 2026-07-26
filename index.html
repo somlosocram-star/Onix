@@ -282,7 +282,7 @@ body.light .card .name { color: var(--text); }
     <button class="btn" id="btn-online">Multijugador</button>
     <button class="btn btn-sec" id="btn-instalar" style="display:none">▾ Instalar app</button>
   </div>
-  <div class="ver-tag" id="ver-tag">v0.41.0</div>
+  <div class="ver-tag" id="ver-tag">v0.42.0</div>
 </div>
 
 <div id="screen-setup" class="screen">
@@ -384,7 +384,7 @@ body.light .card .name { color: var(--text); }
   window.addEventListener('error', quita);
 })();
 
-const VERSION = 'v0.41.0';
+const VERSION = 'v0.42.0';
 const $ = id => document.getElementById(id);
 const PUNTOS = { 0:[], 1:[5], 2:[1,9], 3:[1,5,9], 4:[1,3,7,9], 5:[1,3,5,7,9], 6:[1,2,3,7,8,9] };
 const DIR = { 0:[1,0], 90:[0,1], 180:[-1,0], 270:[0,-1] };
@@ -1014,7 +1014,9 @@ function cambioTurno() {
       if (pozo.length && quedan > 0) {
         $('aviso').innerHTML = 'no casas · <b>roba</b> · te ' + (quedan === 1 ? 'queda 1' : 'quedan ' + quedan);
       } else {
-        $('aviso').innerHTML = 'no casas · <b>pasas</b>';
+        $('aviso').innerHTML = pozo.length
+          ? 'no casas · <b>pasas</b> · seguirás robando'
+          : 'no casas · <b>pasas</b>';
         pasar(yo); return;
       }
     } else {
@@ -1197,11 +1199,15 @@ function buscarEn(mano, quien) {
 
 // Pasa el turno sin jugar. Dos pases seguidos cierran la ronda.
 function pasar(quien) {
-  pases++;
   const manoQ = manoDe(quien);
   anotarPase(quien);
   if (casaNumero(manoQ)) motivoCierre = 'sitio';
   else if (motivoCierre !== 'sitio') motivoCierre = 'numeros';
+  // Mientras QUEDE POZO la ronda no se cierra: en el turno siguiente se
+  // vuelve a robar. Solo cuentan para cerrar los pases con el pozo agotado;
+  // si no, una mala racha de robos acababa la mano con fichas jugables aún
+  // por salir.
+  if (pozo.length > 0) pases = 0; else pases++;
   if (pases >= nJug) { cerrarPorPuntos(); return; }
   turno = (quien + 1) % nJug;
   bloqueo = false;
