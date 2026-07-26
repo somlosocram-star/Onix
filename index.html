@@ -282,7 +282,7 @@ body.light .card .name { color: var(--text); }
     <button class="btn" id="btn-online">Multijugador</button>
     <button class="btn btn-sec" id="btn-instalar" style="display:none">▾ Instalar app</button>
   </div>
-  <div class="ver-tag" id="ver-tag">v0.39.0</div>
+  <div class="ver-tag" id="ver-tag">v0.40.0</div>
 </div>
 
 <div id="screen-setup" class="screen">
@@ -384,7 +384,7 @@ body.light .card .name { color: var(--text); }
   window.addEventListener('error', quita);
 })();
 
-const VERSION = 'v0.39.0';
+const VERSION = 'v0.40.0';
 const $ = id => document.getElementById(id);
 const PUNTOS = { 0:[], 1:[5], 2:[1,9], 3:[1,5,9], 4:[1,3,7,9], 5:[1,3,5,7,9], 6:[1,2,3,7,8,9] };
 const DIR = { 0:[1,0], 90:[0,1], 180:[-1,0], 270:[0,-1] };
@@ -471,10 +471,15 @@ function mitades(f) {
 }
 // Mini imán: se acepta con holgura (hasta media ficha de desvío) y luego
 // encajar() la coloca exacta. Así vale con dejarla cerca.
+// Dos mitades se tocan canto con canto cuando su separación es de UNA ficha
+// justa en un eje y como mucho media en el otro (el cruce del doble). Antes
+// se admitía hasta ficha y media: eso daba por unidas fichas separadas por
+// medio hueco, y en la mesa se veía el aire entre ellas.
 function pegadas(p, q) {
   const gx = Math.abs(p.x - q.x), gy = Math.abs(p.y - q.y);
-  return (gy <= U*.62 && gx >= U*.58 && gx <= U*1.5)
-      || (gx <= U*.62 && gy >= U*.58 && gy <= U*1.5);
+  const T = U * .18;                       // tolerancia de redondeo
+  return (gy <= U*.62 && Math.abs(gx - U) <= T)
+      || (gx <= U*.62 && Math.abs(gy - U) <= T);
 }
 function choque(A, B, eje) {
   const a = medios(A.rot), b = medios(B.rot);
@@ -657,9 +662,10 @@ function conexion(f) {
             // doble (queda centrado, como debe); la paralela desde la mitad
             // (queda alineada al costado). Mezclarlas producía el pegote
             // escalonado a media altura.
-            let bases;
+            let bases, paralelaADoble = false;
             if (esDoble(g)) {
               const cruza = (rotN(gi.rot) % 180) !== (rotN(g.rot) % 180);
+              paralelaADoble = !cruza;
               bases = cruza ? [[g.x, g.y]] : [[mg[j].x, mg[j].y]];
             } else {
               bases = [[mg[j].x, mg[j].y]];
@@ -681,7 +687,10 @@ function conexion(f) {
                 // el sitio construido debe tocar de verdad la mitad elegida
                 const fin = { a: f.a, b: f.b, x: cx, y: cy, rot: gi.rot };
                 if (!pegadas(mitades(fin)[i], mg[j])) continue;
-                const nota = dist + gi.extra;
+                // Lo normal contra un doble es CRUZARLO. La paralela pegada
+                // al costado es el recurso para escapar de un borde, así que
+                // solo gana cuando el cruce no cabe.
+                const nota = dist + gi.extra + (paralelaADoble ? U * 2.2 : 0);
                 if (nota < mejorD) { mejorD = nota; mejor = { x: cx, y: cy, rot: gi.rot, con: g, u: { mia: i, suya: j } }; }
               }
             }
@@ -760,26 +769,26 @@ function mitadConHueco(g, j) {
   return false;
 }
 
-// Valores que de verdad siguen en juego: mitad libre Y con hueco donde jugar.
-function valoresVivos() {
-  const s = new Set();
-  for (const g of cadena) {
-    const u = g.usadas || [false, false];
-    for (let j = 0; j < 2; j++)
-      if (!u[j] && mitadConHueco(g, j)) s.add(j === 0 ? g.a : g.b);
+// ¿Están ya jugadas las 7 fichas que llevan ese número? Entonces nadie lo
+// tiene: ni las manos ni el pozo. Es información pública, se ve en la mesa.
+function numeroAgotado(n) {
+  for (let o = 0; o <= 6; o++) {
+    const a = Math.min(n, o), b = Math.max(n, o);
+    if (!cadena.some(g => Math.min(g.a, g.b) === a && Math.max(g.a, g.b) === b)) return false;
   }
-  return s;
+  return true;
 }
 
+// La mesa está muerta si no queda ninguna mitad que esté libre, tenga hueco
+// físico donde recibir ficha, y cuyo número siga vivo fuera de la mesa.
 function mesaMuerta() {
   if (!cadena.length) return false;
-  const abiertos = valoresVivos();
-  if (!abiertos.size) return true;
-  for (const n of abiertos) {
-    for (let o = 0; o <= 6; o++) {
-      const a = Math.min(n, o), b = Math.max(n, o);
-      const jugada = cadena.some(g => (Math.min(g.a, g.b) === a && Math.max(g.a, g.b) === b));
-      if (!jugada) return false;      // aún queda una ficha con ese número
+  for (const g of cadena) {
+    const u = g.usadas || [false, false];
+    for (let j = 0; j < 2; j++) {
+      if (u[j]) continue;
+      if (numeroAgotado(j === 0 ? g.a : g.b)) continue;   // barato primero
+      if (mitadConHueco(g, j)) return false;              // caro solo si hace falta
     }
   }
   return true;
