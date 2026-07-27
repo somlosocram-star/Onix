@@ -282,7 +282,7 @@ body.light .card .name { color: var(--text); }
     <button class="btn" id="btn-online">Multijugador</button>
     <button class="btn btn-sec" id="btn-instalar" style="display:none">▾ Instalar app</button>
   </div>
-  <div class="ver-tag" id="ver-tag">v0.44.0</div>
+  <div class="ver-tag" id="ver-tag">v0.45.0</div>
 </div>
 
 <div id="screen-setup" class="screen">
@@ -384,7 +384,7 @@ body.light .card .name { color: var(--text); }
   window.addEventListener('error', quita);
 })();
 
-const VERSION = 'v0.44.0';
+const VERSION = 'v0.45.0';
 const $ = id => document.getElementById(id);
 const PUNTOS = { 0:[], 1:[5], 2:[1,9], 3:[1,5,9], 4:[1,3,7,9], 5:[1,3,5,7,9], 6:[1,2,3,7,8,9] };
 const DIR = { 0:[1,0], 90:[0,1], 180:[-1,0], 270:[0,-1] };
@@ -475,7 +475,7 @@ function calcularRutas() {
   const z = zonaJuego();                // arriba el pozo, abajo tu mano
   const arr = z.arriba + U * 1.3, aba = z.abajo - U * 1.3;
   const cx = Math.round(W / 2), cy = Math.round(H * .46);   // la ficha de salida
-  const d = U * 2.4;                    // separación de la vuelta interior
+  const d = U * 3.2;                    // separación entre las dos espirales
   RUTAS = [
     // camino 1: se enrosca por ARRIBA
     [[cx, cy], [W - m, cy], [W - m, arr], [m, arr], [m, cy - d], [W - m - U * 2, cy - d]],
@@ -504,6 +504,22 @@ function fueraDeRuta(x, y) {
     if (d < mejor) mejor = d;
   }
   return mejor;
+}
+
+// ¿Hacia dónde va el camino en ese punto? Devuelve 'x' si el tramo más
+// cercano es horizontal, 'y' si es vertical. Con esto la cadena no solo pasa
+// por el camino: además avanza EN SU DIRECCIÓN y no gira antes de tiempo.
+function ejeRuta(x, y) {
+  const rs = calcularRutas();
+  let mejor = Infinity, eje = 'x';
+  for (const r of rs) for (let i = 0; i < r.length - 1; i++) {
+    const d = distSeg(x, y, r[i], r[i + 1]);
+    if (d < mejor) {
+      mejor = d;
+      eje = Math.abs(r[i + 1][0] - r[i][0]) >= Math.abs(r[i + 1][1] - r[i][1]) ? 'x' : 'y';
+    }
+  }
+  return eje;
 }
 
 /* ============================================================ geometría */
@@ -1199,7 +1215,15 @@ function buscarEn(mano, quien) {
           // El camino gobierna la forma de la mesa. El premio por alejarse
           // del borde se baja mucho: antes empujaba al centro y peleaba con
           // la ruta, que precisamente pasa cerca de los bordes.
-          const nota = estilo
+          // La cadena avanza EN LA DIRECCIÓN del camino: una ficha normal se
+          // tumba a lo largo del tramo y un doble se cruza. Girar antes de
+          // llegar a la curva es lo que rompía el orden de la mesa.
+          const ejeR = ejeRuta(px, py);
+          const ejeF = (prot % 180 === 0) ? 'x' : 'y';
+          const debeSer = esDoble(t) ? (ejeR === 'x' ? 'y' : 'x') : ejeR;
+          const giroMalo = (ejeF !== debeSer) ? 30 : 0;
+
+          const nota = estilo - giroMalo
                      - fueraDeRuta(px, py) * 2.6      // seguir el camino
                      + Math.min(borde, U*2) * .35
                      - apinado * 10
