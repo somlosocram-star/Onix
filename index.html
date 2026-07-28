@@ -282,7 +282,7 @@ body.light .card .name { color: var(--text); }
     <button class="btn" id="btn-online">Multijugador</button>
     <button class="btn btn-sec" id="btn-instalar" style="display:none">▾ Instalar app</button>
   </div>
-  <div class="ver-tag" id="ver-tag">v0.46.0</div>
+  <div class="ver-tag" id="ver-tag">v0.47.0</div>
 </div>
 
 <div id="screen-setup" class="screen">
@@ -384,7 +384,7 @@ body.light .card .name { color: var(--text); }
   window.addEventListener('error', quita);
 })();
 
-const VERSION = 'v0.46.0';
+const VERSION = 'v0.47.0';
 const $ = id => document.getElementById(id);
 const PUNTOS = { 0:[], 1:[5], 2:[1,9], 3:[1,5,9], 4:[1,3,7,9], 5:[1,3,5,7,9], 6:[1,2,3,7,8,9] };
 const DIR = { 0:[1,0], 90:[0,1], 180:[-1,0], 270:[0,-1] };
@@ -506,6 +506,30 @@ function fueraDeRuta(x, y) {
   return mejor;
 }
 
+// ¿Cuánto camino se lleva recorrido en ese punto? Sirve para saber si una
+// jugada AVANZA por la ruta o retrocede metiéndose en una esquina ya usada.
+function avanceRuta(x, y) {
+  const rs = calcularRutas();
+  let mejorD = Infinity, avance = 0;
+  for (const r of rs) {
+    let acum = 0;
+    for (let i = 0; i < r.length - 1; i++) {
+      const A2 = r[i], B2 = r[i + 1];
+      const vx = B2[0] - A2[0], vy = B2[1] - A2[1];
+      const L = Math.hypot(vx, vy);
+      const d = distSeg(x, y, A2, B2);
+      if (d < mejorD) {
+        mejorD = d;
+        let t = L ? ((x - A2[0]) * vx + (y - A2[1]) * vy) / (L * L) : 0;
+        t = Math.max(0, Math.min(1, t));
+        avance = acum + t * L;
+      }
+      acum += L;
+    }
+  }
+  return avance;
+}
+
 // ¿Hacia dónde va el camino en ese punto? Devuelve 'x' si el tramo más
 // cercano es horizontal, 'y' si es vertical. Con esto la cadena no solo pasa
 // por el camino: además avanza EN SU DIRECCIÓN y no gira antes de tiempo.
@@ -604,12 +628,19 @@ function zonaJuego() {
   return { arriba: U * 3.2, abajo: mesa.clientHeight - U * 3.7 };
 }
 
+// Cuando está activo, se permite invadir las bandas del pozo y de la mano.
+// Solo se usa como ÚLTIMO RECURSO para una jugada del jugador que si no
+// sería imposible: nunca para la IA, que debe mantener la mesa ordenada.
+let permisoBanda = false;
+let iaBuscando = false;      // la IA nunca usa el rescate de las bandas
+
 function cabe(x, y, rot, salvo) {
   const pr = { x: x, y: y, rot: rot };
-  const m = medios(rot), w = mesa.clientWidth;
+  const m = medios(rot), w = mesa.clientWidth, hh = mesa.clientHeight;
   const z = zonaJuego();
+  const arr = permisoBanda ? 2 : z.arriba, aba = permisoBanda ? hh - 2 : z.abajo;
   if (x - m.mx < 2 || x + m.mx > w - 2) return false;
-  if (y - m.my < z.arriba || y + m.my > z.abajo) return false;
+  if (y - m.my < arr || y + m.my > aba) return false;
   for (const g of cadena) { if (g === salvo) continue; if (choque(pr, g)) return false; }
   return true;
 }
@@ -789,7 +820,14 @@ function conexion(f) {
       }
     }
   }
-  return mejor || enLinea;
+  if (mejor || enLinea) return mejor || enLinea;
+  // Nada dentro de la zona de juego: se reintenta pisando las bandas del
+  // pozo y de la mano, antes que impedir una jugada legal.
+  if (!permisoBanda && !iaBuscando) {
+    permisoBanda = true;
+    try { return conexion(f); } finally { permisoBanda = false; }
+  }
+  return null;
 }
 
 function encajar(f, con) {
@@ -1180,6 +1218,11 @@ function turnoIA() {
 // La IA usa EXACTAMENTE la misma validación que el humano: genera posiciones
 // candidatas alrededor de cada ficha jugada (a rejilla) y comprueba unidas+cabe.
 function buscarEn(mano, quien) {
+  iaBuscando = true;
+  try { return buscarJugada(mano, quien); } finally { iaBuscando = false; }
+}
+
+function buscarJugada(mano, quien) {
   let mejor = null, mejorNota = -Infinity;
   const w = mesa.clientWidth, hh = mesa.clientHeight;
   for (let idx = 0; idx < mano.length; idx++) {
