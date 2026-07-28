@@ -282,7 +282,7 @@ body.light .card .name { color: var(--text); }
     <button class="btn" id="btn-online">Multijugador</button>
     <button class="btn btn-sec" id="btn-instalar" style="display:none">▾ Instalar app</button>
   </div>
-  <div class="ver-tag" id="ver-tag">v0.45.0</div>
+  <div class="ver-tag" id="ver-tag">v0.46.0</div>
 </div>
 
 <div id="screen-setup" class="screen">
@@ -384,7 +384,7 @@ body.light .card .name { color: var(--text); }
   window.addEventListener('error', quita);
 })();
 
-const VERSION = 'v0.45.0';
+const VERSION = 'v0.46.0';
 const $ = id => document.getElementById(id);
 const PUNTOS = { 0:[], 1:[5], 2:[1,9], 3:[1,5,9], 4:[1,3,7,9], 5:[1,3,5,7,9], 6:[1,2,3,7,8,9] };
 const DIR = { 0:[1,0], 90:[0,1], 180:[-1,0], 270:[0,-1] };
@@ -776,7 +776,11 @@ function conexion(f) {
                 const nota = dist + gi.extra + (paralelaADoble ? U * 2.2 : 0)
                            + fueraDeRuta(cx, cy) * .35;
                 const cand = { x: cx, y: cy, rot: gi.rot, con: g, u: { mia: i, suya: j } };
-                if (dobleEnLinea) { if (nota < peorD) { peorD = nota; enLinea = cand; } }
+                // Un doble en línea es jugada válida: pierde frente al cruce,
+                // pero si lo acercas claramente a ese hueco, se coloca. Nunca
+                // se te impide una jugada legal por una regla de estilo.
+                if (dobleEnLinea) { if (nota + U * .5 < mejorD) { mejorD = nota + U * .5; mejor = cand; }
+                                    else if (nota < peorD) { peorD = nota; enLinea = cand; } }
                 else if (nota < mejorD) { mejorD = nota; mejor = cand; }
               }
             }
@@ -1073,9 +1077,7 @@ function intentar(f) {
   if (!con) {
     if (cerca(f)) {
       const v = valoresAbiertos();
-      if (f.a === f.b && (v.has(f.a)))
-        $('aviso').innerHTML = 'el doble va siempre <b>atravesado</b>';
-      else $('aviso').innerHTML = (v.has(f.a) || v.has(f.b))
+      $('aviso').innerHTML = (v.has(f.a) || v.has(f.b))
         ? 'ahí no encaja · <b>acércala más</b> o prueba otro sitio'
         : 'ahí <b>no casa</b> · prueba otro número';
     }
