@@ -471,11 +471,11 @@ function calcularRutas() {
   const firma = W + 'x' + H + 'x' + U;
   if (RUTAS && rutasFirma === firma) return RUTAS;
   rutasFirma = firma;
-  const m = U * 1.7;                    // margen a los lados
+  const m = U * 2.1;                    // margen a los lados
   const z = zonaJuego();                // arriba el pozo, abajo tu mano
   const arr = z.arriba + U * 1.3, aba = z.abajo - U * 1.3;
   const cx = Math.round(W / 2), cy = Math.round(H * .46);   // la ficha de salida
-  const d = U * 3.2;                    // separación entre las dos espirales
+  const d = U * 3.7;                    // separación entre las dos espirales
   RUTAS = [
     // camino 1: se enrosca por ARRIBA
     [[cx, cy], [W - m, cy], [W - m, arr], [m, arr], [m, cy - d], [W - m - U * 2, cy - d]],
@@ -504,30 +504,6 @@ function fueraDeRuta(x, y) {
     if (d < mejor) mejor = d;
   }
   return mejor;
-}
-
-// ¿Cuánto camino se lleva recorrido en ese punto? Sirve para saber si una
-// jugada AVANZA por la ruta o retrocede metiéndose en una esquina ya usada.
-function avanceRuta(x, y) {
-  const rs = calcularRutas();
-  let mejorD = Infinity, avance = 0;
-  for (const r of rs) {
-    let acum = 0;
-    for (let i = 0; i < r.length - 1; i++) {
-      const A2 = r[i], B2 = r[i + 1];
-      const vx = B2[0] - A2[0], vy = B2[1] - A2[1];
-      const L = Math.hypot(vx, vy);
-      const d = distSeg(x, y, A2, B2);
-      if (d < mejorD) {
-        mejorD = d;
-        let t = L ? ((x - A2[0]) * vx + (y - A2[1]) * vy) / (L * L) : 0;
-        t = Math.max(0, Math.min(1, t));
-        avance = acum + t * L;
-      }
-      acum += L;
-    }
-  }
-  return avance;
 }
 
 // ¿Hacia dónde va el camino en ese punto? Devuelve 'x' si el tramo más
@@ -628,19 +604,12 @@ function zonaJuego() {
   return { arriba: U * 3.2, abajo: mesa.clientHeight - U * 3.7 };
 }
 
-// Cuando está activo, se permite invadir las bandas del pozo y de la mano.
-// Solo se usa como ÚLTIMO RECURSO para una jugada del jugador que si no
-// sería imposible: nunca para la IA, que debe mantener la mesa ordenada.
-let permisoBanda = false;
-let iaBuscando = false;      // la IA nunca usa el rescate de las bandas
-
 function cabe(x, y, rot, salvo) {
   const pr = { x: x, y: y, rot: rot };
-  const m = medios(rot), w = mesa.clientWidth, hh = mesa.clientHeight;
+  const m = medios(rot), w = mesa.clientWidth;
   const z = zonaJuego();
-  const arr = permisoBanda ? 2 : z.arriba, aba = permisoBanda ? hh - 2 : z.abajo;
   if (x - m.mx < 2 || x + m.mx > w - 2) return false;
-  if (y - m.my < arr || y + m.my > aba) return false;
+  if (y - m.my < z.arriba || y + m.my > z.abajo) return false;
   for (const g of cadena) { if (g === salvo) continue; if (choque(pr, g)) return false; }
   return true;
 }
@@ -820,14 +789,7 @@ function conexion(f) {
       }
     }
   }
-  if (mejor || enLinea) return mejor || enLinea;
-  // Nada dentro de la zona de juego: se reintenta pisando las bandas del
-  // pozo y de la mano, antes que impedir una jugada legal.
-  if (!permisoBanda && !iaBuscando) {
-    permisoBanda = true;
-    try { return conexion(f); } finally { permisoBanda = false; }
-  }
-  return null;
+  return mejor || enLinea;
 }
 
 function encajar(f, con) {
@@ -918,6 +880,48 @@ function mesaMuerta() {
       if (numeroAgotado(j === 0 ? g.a : g.b)) continue;   // barato primero
       if (mitadConHueco(g, j)) return false;              // caro solo si hace falta
     }
+  }
+  return true;
+}
+
+// ÁRBITRO EXACTO: recorre la rejilla real de la mesa (media ficha desde la
+// salida) buscando CUALQUIER colocación legal de una ficha concreta. Es más
+// lento que la detección rápida, así que solo se usa para DECIDIR cierres y
+// pases, donde no se puede fallar.
+function existeColocacion(t) {
+  const z = zonaJuego();
+  const pr = { a: t.a, b: t.b, usadas: [false, false] };
+  const x0 = Math.round(mesa.clientWidth / 2), y0 = Math.round(mesa.clientHeight * .46);
+  for (let kx = -14; kx <= 14; kx++) {
+    const x = x0 + kx * (U / 2);
+    for (let ky = -14; ky <= 14; ky++) {
+      const y = y0 + ky * (U / 2);
+      for (const rot of [0, 90]) {
+        const m = medios(rot);
+        if (x - m.mx < 2 || x + m.mx > mesa.clientWidth - 2) continue;
+        if (y - m.my < z.arriba || y + m.my > z.abajo) continue;
+        pr.x = x; pr.y = y; pr.rot = rot;
+        let choca = false;
+        for (const g of cadena) if (choque(pr, g)) { choca = true; break; }
+        if (choca) continue;
+        for (const g of cadena) if (unionEntre(pr, g)) return { x: x, y: y, rot: rot, con: g };
+      }
+    }
+  }
+  return null;
+}
+function colocacionExacta(mano) {
+  for (const t of mano) {
+    const r = existeColocacion(t);
+    if (r) return { t: t, x: r.x, y: r.y, rot: r.rot, con: r.con };
+  }
+  return null;
+}
+function mesaRealmenteMuerta() {
+  const v = valoresAbiertos();
+  for (let a = 0; a <= 6; a++) for (let b = a; b <= 6; b++) {
+    if (!v.has(a) && !v.has(b)) continue;          // esta ficha no casa por número
+    if (existeColocacion({ a: a, b: b })) return false;
   }
   return true;
 }
@@ -1080,7 +1084,7 @@ function cambioTurno() {
   // obligar a robar. Un dominó (mano vacía) siempre tiene prioridad.
   let manoVacia = false;
   for (let p = 0; p < nJug; p++) if (!manoDe(p).length) manoVacia = true;
-  if (!bloqueo && !manoVacia && mesaMuerta()) { motivoCierre = 'agotado'; cerrarPorPuntos(); return; }
+  if (!bloqueo && !manoVacia && mesaMuerta() && mesaRealmenteMuerta()) { motivoCierre = 'agotado'; if (cerrarPorPuntos()) return; }
   if (turno === yo) {
     $('m-turno').textContent = 'tu turno';
     sTurno();
@@ -1184,8 +1188,15 @@ function turnoIA() {
     $('aviso').textContent = NOMBRES[yo] + ' pasa';
     bloqueo = false; pasar(yo); return;
   }
-  const j = buscarEn(mano, yo);
-  if (!j) {                       // le casa pero no tiene sitio donde ponerla
+  let j = buscarEn(mano, yo);
+  let exacta = null;
+  if (!j) {
+    // PLAN B: la búsqueda rápida no vio sitio; el árbitro exacto decide.
+    // Si hay colocación legal, la IA la juega en vez de pasar en falso.
+    exacta = colocacionExacta(mano);
+    if (exacta) j = { idx: mano.indexOf(exacta.t), t: exacta.t, x: exacta.x, y: exacta.y, rot: exacta.rot };
+  }
+  if (!j) {                       // no hay jugada legal de verdad: pasa
     pintarIA(); pintarChips();
     $('aviso').textContent = NOMBRES[yo] + ' no tiene sitio';
     bloqueo = false; pasar(yo); return;
@@ -1193,10 +1204,10 @@ function turnoIA() {
 
   mano.splice(j.idx, 1);
   const f = crearFicha(j.t.a, j.t.b, mesa.clientWidth/2, U*1.4, j.rot);
-  f.x = j.x; f.y = j.y;
+  f.x = j.x; f.y = j.y; f.rot = j.rot;
   const con = conexion(f);
   if (con) anotarJugada(f, con);
-  else { f.fija = true; f.usadas = [false, false]; f.el.classList.add('jugada'); cadena.push(f); }
+  else anotarJugada(f, { con: exacta ? exacta.con : null });   // colocación exacta: consume uniones igual
   empujar(f, null);
   girar(f);
   pintarIA(); pintarChips();
@@ -1218,11 +1229,6 @@ function turnoIA() {
 // La IA usa EXACTAMENTE la misma validación que el humano: genera posiciones
 // candidatas alrededor de cada ficha jugada (a rejilla) y comprueba unidas+cabe.
 function buscarEn(mano, quien) {
-  iaBuscando = true;
-  try { return buscarJugada(mano, quien); } finally { iaBuscando = false; }
-}
-
-function buscarJugada(mano, quien) {
   let mejor = null, mejorNota = -Infinity;
   const w = mesa.clientWidth, hh = mesa.clientHeight;
   for (let idx = 0; idx < mano.length; idx++) {
@@ -1266,12 +1272,47 @@ function buscarJugada(mano, quien) {
           const ejeR = ejeRuta(px, py);
           const ejeF = (prot % 180 === 0) ? 'x' : 'y';
           const debeSer = esDoble(t) ? (ejeR === 'x' ? 'y' : 'x') : ejeR;
-          const giroMalo = (ejeF !== debeSer) ? 30 : 0;
+          const giroMalo = (ejeF !== debeSer) ? 14 : 0;
+
+          // VISTA ATRÁS (solo cuando la IA decide): simula la jugada y mira si
+          // la mesa sigue viva. Una jugada que deja todas las mitades abiertas
+          // sin hueco físico es un suicidio: cierra la partida con números vivos.
+          let suicida = false;
+          if (quien !== undefined) {
+            const prueba = { a: t.a, b: t.b, x: px, y: py, rot: prot, usadas: [false, false] };
+            const respaldo = cadena.map(g => g.usadas ? [g.usadas[0], g.usadas[1]] : undefined);
+            const mp = mitades(prueba);
+            for (const g of cadena) {
+              const mg2 = mitades(g);
+              g.usadas = g.usadas || [false, false];
+              for (let ii = 0; ii < 2; ii++) for (let jj = 0; jj < 2; jj++) {
+                if (prueba.usadas[ii] || g.usadas[jj]) continue;
+                if (mp[ii].v !== mg2[jj].v || !pegadas(mp[ii], mg2[jj])) continue;
+                if (!contactoValido(prueba, g, mp[ii], mg2[jj])) continue;
+                prueba.usadas[ii] = true; g.usadas[jj] = true;
+              }
+            }
+            cadena.push(prueba);
+            let sigueViva = false;
+            for (const g of cadena) {
+              const uu = g.usadas || [false, false];
+              for (let jj = 0; jj < 2; jj++) {
+                if (uu[jj]) continue;
+                if (numeroAgotado(jj === 0 ? g.a : g.b)) continue;
+                if (mitadConHueco(g, jj)) { sigueViva = true; break; }
+              }
+              if (sigueViva) break;
+            }
+            cadena.pop();
+            cadena.forEach((g, i2) => { g.usadas = respaldo[i2] ? [respaldo[i2][0], respaldo[i2][1]] : undefined; });
+            suicida = !sigueViva && mano.length > 1;   // vaciar la mano sí vale
+          }
 
           const nota = estilo - giroMalo
-                     - fueraDeRuta(px, py) * 2.6      // seguir el camino
-                     + Math.min(borde, U*2) * .35
+                     - fueraDeRuta(px, py) * 1.1      // el camino orienta, no encarcela
+                     + Math.min(borde, U*3) * .6      // respeto por el borde
                      - apinado * 10
+                     - (suicida ? 500 : 0)            // nunca te encierres
                      + (t.a + t.b) * .3
                      + Math.random() * 2;
           if (nota > mejorNota) { mejorNota = nota; mejor = { idx: idx, t: t, x: px, y: py, rot: prot }; }
@@ -1286,6 +1327,22 @@ function buscarJugada(mano, quien) {
 // Pasa el turno sin jugar. Dos pases seguidos cierran la ronda.
 function pasar(quien) {
   const manoQ = manoDe(quien);
+  // Árbitro: un pase solo es real si NO existe ninguna colocación legal.
+  // Si el humano tiene una, se le enseña la ficha y no pasa.
+  if (quien === yo && !online) {
+    for (const t of manoQ) {
+      if (existeColocacion(t)) {
+        const f = miMano().find(x => x.a === t.a && x.b === t.b);
+        $('aviso').innerHTML = 'aún te casa el <b>' + t.a + '/' + t.b + '</b> · no puedes pasar';
+        if (f && f.el) {
+          f.el.classList.add('pista');
+          setTimeout(() => f.el.classList.remove('pista'), 1600);
+        }
+        if (navigator.vibrate) navigator.vibrate([4, 60, 4]);
+        return;
+      }
+    }
+  }
   anotarPase(quien);
   if (casaNumero(manoQ)) motivoCierre = 'sitio';
   else if (motivoCierre !== 'sitio') motivoCierre = 'numeros';
@@ -1294,7 +1351,10 @@ function pasar(quien) {
   // si no, una mala racha de robos acababa la mano con fichas jugables aún
   // por salir.
   if (pozo.length > 0) pases = 0; else pases++;
-  if (pases >= nJug) { cerrarPorPuntos(); return; }
+  if (pases >= nJug) {
+    if (cerrarPorPuntos()) return;
+    pases = 0;   // no se cerró: aún había jugada legal, la ronda sigue
+  }
   turno = (quien + 1) % nJug;
   bloqueo = false;
   setTimeout(cambioTurno, 700);
@@ -1305,9 +1365,14 @@ function comprobarFin() {
   if (bloqueo) return;
   if (pozo.length) return;
   for (let p = 0; p < nJug; p++) if (puedeJugar(manoDe(p))) return;
+  // árbitro exacto por si la geometría rápida se quedó corta
+  for (let p = 0; p < nJug; p++) for (const t of manoDe(p)) if (existeColocacion(t)) return;
   cerrarPorPuntos();
 }
 function cerrarPorPuntos() {
+  // ÚLTIMO ÁRBITRO: si queda UNA SOLA jugada legal en cualquier mano, la
+  // partida NO está cerrada, diga lo que diga la detección rápida.
+  for (let p = 0; p < nJug; p++) for (const t of manoDe(p)) if (existeColocacion(t)) return false;
   if (!motivoCierre) {
     let alguno = false;
     for (let p = 0; p < nJug; p++) if (casaNumero(manoDe(p))) alguno = true;
@@ -1317,6 +1382,7 @@ function cerrarPorPuntos() {
   // En un cierre no gana nadie: cada bando suma los puntos que le quedan.
   // Solo se restan 5 cuando alguien se queda sin fichas.
   setTimeout(() => finRonda(null, 'cierre'), 900);
+  return true;
 }
 /* ============================================================ arrastre */
 function fichaEn(px, py) {
@@ -1778,7 +1844,7 @@ function aplicarJugadas(est) {
     const f = crearFicha(d.a, d.b, d.x, d.y, d.rot);
     const con = conexion(f);
     if (con) anotarJugada(f, con);
-    else { f.fija = true; f.usadas = [false,false]; f.el.classList.add('jugada'); cadena.push(f); }
+    else anotarJugada(f, { con: null });   // misma vía: siempre consume uniones
     empujar(f, null); girar(f);
     manos[1 - yo] = (est.manos && est.manos[1 - yo]) || manos[1 - yo];
     $('aviso').textContent = 'tu rival juega el ' + o.a + '/' + o.b;

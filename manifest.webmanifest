@@ -1,19 +1,17 @@
 {
   "name": "Ónix · Dominó",
   "short_name": "Ónix",
-  "description": "Dominó sobre mesa libre. Coloca las fichas donde quieras.",
-  "start_url": "./index.html?src=pwa",
-  "id": "onix-domino",
+  "description": "Ónix — dominó sobre mesa libre. Coloca las fichas donde quieras.",
+  "lang": "es",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0b0b0c",
   "theme_color": "#0b0b0c",
-  "categories": ["games"],
-  "lang": "es",
   "icons": [
-    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
     { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }
