@@ -282,7 +282,7 @@ body.light .card .name { color: var(--text); }
     <button class="btn" id="btn-online">Multijugador</button>
     <button class="btn btn-sec" id="btn-instalar" style="display:none">▾ Instalar app</button>
   </div>
-  <div class="ver-tag" id="ver-tag">v0.47.1</div>
+  <div class="ver-tag" id="ver-tag">v0.47.2</div>
 </div>
 
 <div id="screen-setup" class="screen">
@@ -384,7 +384,7 @@ body.light .card .name { color: var(--text); }
   window.addEventListener('error', quita);
 })();
 
-const VERSION = 'v0.47.1';
+const VERSION = 'v0.47.2';
 const $ = id => document.getElementById(id);
 const PUNTOS = { 0:[], 1:[5], 2:[1,9], 3:[1,5,9], 4:[1,3,7,9], 5:[1,3,5,7,9], 6:[1,2,3,7,8,9] };
 const DIR = { 0:[1,0], 90:[0,1], 180:[-1,0], 270:[0,-1] };
@@ -739,20 +739,22 @@ function conexion(f) {
             //    costado y alineada con él (para escapar de un borde).
             // El cruce se mide desde el centro del doble; la paralela desde
             // la mitad concreta. Se prueban ambas y gana la más cercana.
-            // Cada entrada usa SU base: el cruce se mide desde el centro del
-            // doble (queda centrado, como debe); la paralela desde la mitad
-            // (queda alineada al costado). Mezclarlas producía el pegote
-            // escalonado a media altura.
-            // Las entradas a un doble se construyen SOBRE la mitad concreta
-            // (mg[j]): la ficha queda alineada con ESA mitad, como cuando en
-            // la mesa real la apoyas en una mitad del doble y no a caballo.
-            // Así la unión nunca es ambigua y el jugador ve qué mitad se gastó.
+            // Cada entrada usa SU base y SU desvío:
+            //  · CRUCE (perpendicular al doble): se construye desde el CENTRO
+            //    del doble y SIN desvío lateral, para que la ficha quede
+            //    centrada en su eje — el cruce clásico del dominó. Si toca
+            //    las dos mitades a la vez, la unión la decide anotarJugada.
+            //  · PARALELA (en línea, recurso para escapar de un borde): se
+            //    construye desde la mitad concreta, alineada al costado.
+            // Construir el cruce sobre la mitad dejaba la ficha escalonada
+            // a media altura, como apoyada a un lado del doble.
             let paralelaADoble = false;
             if (esDoble(g)) {
               const cruza = (rotN(gi.rot) % 180) !== (rotN(g.rot) % 180);
               paralelaADoble = !cruza;
             }
-            const bases = [[mg[j].x, mg[j].y]];
+            const cruceADoble = esDoble(g) && !paralelaADoble;
+            const bases = cruceADoble ? [[g.x, g.y]] : [[mg[j].x, mg[j].y]];
             for (const b of bases) {
               // Separación entre la base y el centro de la ficha: depende de
               // si la vecina es doble y de cómo entra. Se prueban las tres
@@ -762,7 +764,8 @@ function conexion(f) {
                 // Un DOBLE va CENTRADO en el eje de la cadena: sus dos mitades
                 // valen lo mismo, así que no se desplaza hacia ninguna. Ese
                 // desvío de media ficha era lo que dejaba dobles descolocados.
-                const lat = (f.a === f.b) ? 0 : (i === 0 ? U / 2 : -U / 2);
+                // El CRUCE a un doble tampoco se desvía: va centrado en su eje.
+                const lat = (f.a === f.b || cruceADoble) ? 0 : (i === 0 ? U / 2 : -U / 2);
                 const cx = px + lat * dd[0], cy = py + lat * dd[1];
                 const dist = Math.hypot(cx - f.x, cy - f.y);
                 if (dist > U * 2.6) continue;      // demasiado lejos de donde soltaste
@@ -1359,9 +1362,14 @@ function buscarEn(mano, quien) {
             suicida = !sigueViva && mano.length > 1;   // vaciar la mano sí vale
           }
 
+          // Prisa por llegar al borde: con la mesa corta no hay necesidad de
+          // apurar la banda; ya llegará la ruta. Se penaliza solo el borde
+          // prematuro, para no pelear con la espiral cuando toca de verdad.
+          const bordePrematuro = (borde < U * 1.2 && cadena.length < 14) ? 26 : 0;
           const nota = estilo - giroMalo
                      - fueraDeRuta(px, py) * 1.1      // el camino orienta, no encarcela
                      + Math.min(borde, U*3) * .6      // respeto por el borde
+                     - bordePrematuro
                      - apinado * 10
                      - (suicida ? 500 : 0)            // nunca te encierres
                      + (t.a + t.b) * .3
