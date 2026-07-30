@@ -282,7 +282,7 @@ body.light .card .name { color: var(--text); }
     <button class="btn" id="btn-online">Multijugador</button>
     <button class="btn btn-sec" id="btn-instalar" style="display:none">▾ Instalar app</button>
   </div>
-  <div class="ver-tag" id="ver-tag">v0.47.0</div>
+  <div class="ver-tag" id="ver-tag">v0.47.1</div>
 </div>
 
 <div id="screen-setup" class="screen">
@@ -384,7 +384,7 @@ body.light .card .name { color: var(--text); }
   window.addEventListener('error', quita);
 })();
 
-const VERSION = 'v0.47.0';
+const VERSION = 'v0.47.1';
 const $ = id => document.getElementById(id);
 const PUNTOS = { 0:[], 1:[5], 2:[1,9], 3:[1,5,9], 4:[1,3,7,9], 5:[1,3,5,7,9], 6:[1,2,3,7,8,9] };
 const DIR = { 0:[1,0], 90:[0,1], 180:[-1,0], 270:[0,-1] };
@@ -743,14 +743,16 @@ function conexion(f) {
             // doble (queda centrado, como debe); la paralela desde la mitad
             // (queda alineada al costado). Mezclarlas producía el pegote
             // escalonado a media altura.
-            let bases, paralelaADoble = false;
+            // Las entradas a un doble se construyen SOBRE la mitad concreta
+            // (mg[j]): la ficha queda alineada con ESA mitad, como cuando en
+            // la mesa real la apoyas en una mitad del doble y no a caballo.
+            // Así la unión nunca es ambigua y el jugador ve qué mitad se gastó.
+            let paralelaADoble = false;
             if (esDoble(g)) {
               const cruza = (rotN(gi.rot) % 180) !== (rotN(g.rot) % 180);
               paralelaADoble = !cruza;
-              bases = cruza ? [[g.x, g.y]] : [[mg[j].x, mg[j].y]];
-            } else {
-              bases = [[mg[j].x, mg[j].y]];
             }
+            const bases = [[mg[j].x, mg[j].y]];
             for (const b of bases) {
               // Separación entre la base y el centro de la ficha: depende de
               // si la vecina es doble y de cómo entra. Se prueban las tres
@@ -798,27 +800,76 @@ function encajar(f, con) {
   girar(f);   // el DIBUJO debe reflejar el giro final del modelo, siempre
 }
 
+// ¿Cuánto futuro tiene una mitad abierta? Cuenta salidas reales alrededor
+// (celdas donde una ficha tocaría esta mitad) y sitio libre junto a ellas.
+// Se usa cuando una ficha entra centrada a un doble y toca sus dos mitades
+// a la vez: se gasta la que deja a la otra con más juego por delante.
+function futuroDeMitad(x, y, prof) {
+  const salidas = [];
+  for (let kx = -4; kx <= 4; kx++) for (let ky = -4; ky <= 4; ky++) {
+    if (!kx && !ky) continue;
+    const cx = x + kx * (U / 2), cy = y + ky * (U / 2);
+    for (const rot of [0, 90]) {
+      if (!cabe(cx, cy, rot, null)) continue;
+      const mf = mitades({ a: 0, b: 0, x: cx, y: cy, rot: rot });
+      if (mf.some(pp => pegadas(pp, { x: x, y: y }))) { salidas.push([cx, cy]); break; }
+    }
+  }
+  let pts = salidas.length;
+  const vist = new Set();
+  for (const s of salidas) {
+    for (let kx = -2; kx <= 2; kx++) for (let ky = -2; ky <= 2; ky++) {
+      const cx = s[0] + kx * (U / 2), cy = s[1] + ky * (U / 2);
+      const k = Math.round(cx) + ',' + Math.round(cy);
+      if (vist.has(k)) continue;
+      vist.add(k);
+      for (const rot of [0, 90]) if (cabe(cx, cy, rot, null)) { pts += .25; break; }
+    }
+  }
+  return pts;
+}
+
 function anotarJugada(f, con) {
   f.fija = true;
   f.origen = con.con;
   f.usadas = f.usadas || [false, false];
+  cadena.push(f);                       // ya ocupa sitio en la mesa
   // se consumen TODAS las uniones válidas de la posición final: si la ficha
   // rellena un hueco y casa por los dos lados, gasta las dos (mesa real)
   const mf = mitades(f);
   for (const g of cadena) {
+    if (g === f) continue;
     const mg = mitades(g);
     g.usadas = g.usadas || [false, false];
-    for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) {
-      if (f.usadas[i] || g.usadas[j]) continue;
-      if (mf[i].v !== mg[j].v || !pegadas(mf[i], mg[j])) continue;
-      if (!contactoValido(f, g, mf[i], mg[j])) continue;
-      f.usadas[i] = true; g.usadas[j] = true;
+    for (let i = 0; i < 2; i++) {
+      if (f.usadas[i]) continue;
+      const validas = [];
+      for (let j = 0; j < 2; j++) {
+        if (g.usadas[j]) continue;
+        if (mf[i].v !== mg[j].v || !pegadas(mf[i], mg[j])) continue;
+        if (!contactoValido(f, g, mf[i], mg[j])) continue;
+        validas.push(j);
+      }
+      // Entrada centrada a un DOBLE: mi mitad toca las dos suyas a la vez
+      // (residual, solo si se coló una colocación a caballo). En la mesa real
+      // la ficha se apoya en una mitad concreta; se gasta la que deja a la
+      // otra con más sitio para seguir jugando.
+      if (validas.length === 2 && esDoble(g)) {
+        const queda0 = futuroDeMitad(mg[0].x, mg[0].y, 3);   // si gasto la 1
+        const queda1 = futuroDeMitad(mg[1].x, mg[1].y, 3);   // si gasto la 0
+        const jElegida = queda0 > queda1 ? 1 : 0;
+        f.usadas[i] = true; g.usadas[jElegida] = true;
+        continue;
+      }
+      for (const j of validas) {
+        if (f.usadas[i] || g.usadas[j]) continue;
+        f.usadas[i] = true; g.usadas[j] = true;
+      }
     }
   }
   f.el.classList.remove('viva');
   f.el.classList.add('jugada', 'recien');
   setTimeout(() => f.el.classList.remove('recien'), 520);
-  cadena.push(f);
   sClac();
 }
 
@@ -896,7 +947,7 @@ function existeColocacion(t) {
     const x = x0 + kx * (U / 2);
     for (let ky = -14; ky <= 14; ky++) {
       const y = y0 + ky * (U / 2);
-      for (const rot of [0, 90]) {
+      for (const rot of [0, 90, 180, 270]) {   // las 4: importa QUÉ mitad toca
         const m = medios(rot);
         if (x - m.mx < 2 || x + m.mx > mesa.clientWidth - 2) continue;
         if (y - m.my < z.arriba || y + m.my > z.abajo) continue;
