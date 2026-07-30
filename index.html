@@ -282,7 +282,7 @@ body.light .card .name { color: var(--text); }
     <button class="btn" id="btn-online">Multijugador</button>
     <button class="btn btn-sec" id="btn-instalar" style="display:none">▾ Instalar app</button>
   </div>
-  <div class="ver-tag" id="ver-tag">v0.47.2</div>
+  <div class="ver-tag" id="ver-tag">v0.47.3</div>
 </div>
 
 <div id="screen-setup" class="screen">
@@ -384,7 +384,7 @@ body.light .card .name { color: var(--text); }
   window.addEventListener('error', quita);
 })();
 
-const VERSION = 'v0.47.2';
+const VERSION = 'v0.47.3';
 const $ = id => document.getElementById(id);
 const PUNTOS = { 0:[], 1:[5], 2:[1,9], 3:[1,5,9], 4:[1,3,7,9], 5:[1,3,5,7,9], 6:[1,2,3,7,8,9] };
 const DIR = { 0:[1,0], 90:[0,1], 180:[-1,0], 270:[0,-1] };
@@ -622,15 +622,24 @@ function cabe(x, y, rot, salvo) {
 // (la excepción del doble: recibir una ficha paralela pegada a su lado).
 function contactoValido(f, g, p, q) {
   // g es la ficha YA JUGADA. A una ficha normal solo se le entra por su
-  // punta (canto corto); por su costado largo solo se entra a un DOBLE.
-  // La esquina sigue valiendo: ahí es la punta de g la que toca el costado
-  // de la ficha nueva, no al revés.
+  // punta (canto corto); por su costado largo solo se entra a un DOBLE...
+  // con UNA EXCEPCIÓN: el GIRO DE ESQUINA en un extremo. Cuando la cadena
+  // llega al borde, en la mesa real la ficha nueva se pone PERPENDICULAR
+  // apoyada en la mitad ABIERTA de la punta, y la cadena gira 90°. Vale
+  // solo si toca ESA mitad y no la otra: tocar las dos sería un parásito
+  // a medio lomo, que en la mesa no existe.
   const gx = q.x - p.x, gy = q.y - p.y;
   const contactoHoriz = Math.abs(gx) > Math.abs(gy);
   const gHoriz = rotN(g.rot) % 180 === 0;
   const costadoG = (contactoHoriz !== gHoriz);   // se le entra por su lado largo
-  if (costadoG) return esDoble(g);
-  return true;
+  if (!costadoG) return true;
+  if (esDoble(g)) return true;
+  const fHoriz = rotN(f.rot) % 180 === 0;
+  if (fHoriz === gHoriz) return false;           // en paralelo al lomo: no
+  const mg = mitades(g);
+  const otra = (mg[0].x === q.x && mg[0].y === q.y) ? mg[1] : mg[0];
+  if (pegadas(p, otra)) return false;            // toca las dos mitades: parásito
+  return true;                                   // giro de esquina en la punta
 }
 
 function unionEntre(f, g) {
@@ -721,12 +730,15 @@ function conexion(f) {
           if (ug[j]) continue;
           if (vi !== mg[j].v) continue;
           // direcciones por las que se puede entrar a esa mitad:
-          // ficha normal -> solo su punta (hacia fuera); doble -> sus 4 lados
+          // doble -> sus 4 lados; ficha normal -> su punta (hacia fuera)
+          // y, para el GIRO DE ESQUINA en el extremo, los dos perpendiculares
+          // a la punta (la curva de la cadena al llegar al borde).
           const dirs = [];
           if (esDoble(g)) dirs.push([1,0],[-1,0],[0,1],[0,-1]);
           else {
             const o = mg[1 - j];
-            dirs.push([Math.sign(mg[j].x - o.x), Math.sign(mg[j].y - o.y)]);
+            const ax = Math.sign(mg[j].x - o.x), ay = Math.sign(mg[j].y - o.y);
+            dirs.push([ax, ay], [-ay, ax], [ay, -ax]);
           }
           for (const d of dirs) {
             // LEY DEL DOBLE: si la ficha que entra es un doble, va SIEMPRE
@@ -771,8 +783,10 @@ function conexion(f) {
                 if (dist > U * 2.6) continue;      // demasiado lejos de donde soltaste
                 if (!cabe(cx, cy, gi.rot, f)) continue;
                 // el sitio construido debe tocar de verdad la mitad elegida
+                // y por un contacto legal (punta, doble o giro de esquina)
                 const fin = { a: f.a, b: f.b, x: cx, y: cy, rot: gi.rot };
                 if (!pegadas(mitades(fin)[i], mg[j])) continue;
+                if (!contactoValido(fin, g, mitades(fin)[i], mg[j])) continue;
                 // Lo normal contra un doble es CRUZARLO. La paralela pegada
                 // al costado es el recurso para escapar de un borde, así que
                 // solo gana cuando el cruce no cabe.

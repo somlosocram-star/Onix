@@ -1,4 +1,4 @@
-const CACHE = 'onix-v0.47.2';
+const CACHE = 'onix-v0.47.3';
 // La música NO va aquí: los archivos grandes hacen fallar la instalación del
 // service worker. Se cachean solos la primera vez que suenan.
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './sello.png',
