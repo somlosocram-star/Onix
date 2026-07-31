@@ -282,7 +282,7 @@ body.light .card .name { color: var(--text); }
     <button class="btn" id="btn-online">Multijugador</button>
     <button class="btn btn-sec" id="btn-instalar" style="display:none">▾ Instalar app</button>
   </div>
-  <div class="ver-tag" id="ver-tag">v0.47.5</div>
+  <div class="ver-tag" id="ver-tag">v0.47.6</div>
 </div>
 
 <div id="screen-setup" class="screen">
@@ -384,7 +384,7 @@ body.light .card .name { color: var(--text); }
   window.addEventListener('error', quita);
 })();
 
-const VERSION = 'v0.47.5';
+const VERSION = 'v0.47.6';
 const $ = id => document.getElementById(id);
 const PUNTOS = { 0:[], 1:[5], 2:[1,9], 3:[1,5,9], 4:[1,3,7,9], 5:[1,3,5,7,9], 6:[1,2,3,7,8,9] };
 const DIR = { 0:[1,0], 90:[0,1], 180:[-1,0], 270:[0,-1] };
@@ -632,7 +632,16 @@ function contactoValido(f, g, p, q) {
   const contactoHoriz = Math.abs(gx) > Math.abs(gy);
   const gHoriz = rotN(g.rot) % 180 === 0;
   const costadoG = (contactoHoriz !== gHoriz);   // se le entra por su lado largo
-  if (!costadoG) return true;
+  if (!costadoG) {
+    // Contacto de punta. Si alguna de las dos es DOBLE se permite el desvío
+    // de media ficha: el doble se cruza a caballo (así son los dobles) y
+    // entrar a un doble por su punta corta exige ese cruce centrado.
+    // Pero entre dos fichas NORMALES la unión tiene que ser canto con canto
+    // ALINEADO con la mitad que casa: el giro en L de la mesa real. A media
+    // altura la ficha parecería un doble cruzando, y no lo es.
+    if (esDoble(f) || esDoble(g)) return true;
+    return Math.min(Math.abs(gx), Math.abs(gy)) <= U * .2;
+  }
   if (esDoble(g)) return true;
   const fHoriz = rotN(f.rot) % 180 === 0;
   if (fHoriz === gHoriz) return false;           // en paralelo al lomo: no
